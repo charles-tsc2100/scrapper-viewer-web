@@ -253,6 +253,12 @@ NORMALISERS = {
     "simonswerk": normalise_simonswerk,
 }
 
+SOURCE_FIELD = {
+    "elmes":      "artunion",
+    "sugatsune":  "sugatsune",
+    "simonswerk": "simonswerk",
+}
+
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -261,6 +267,8 @@ def main():
     ap.add_argument("--source", required=True, choices=list(NORMALISERS))
     ap.add_argument("--batch-size", type=int, default=500)
     ap.add_argument("--dry-run", action="store_true", help="Print rows without inserting")
+    ap.add_argument("--prune", action="store_true",
+                    help="Delete DB rows for this source that are NOT in the current JSON")
     args = ap.parse_args()
 
     json_path = SOURCE_JSON[args.source]
@@ -282,7 +290,9 @@ def main():
     for r in rows_raw:
         seen[r["id"]] = r
     rows = list(seen.values())
+    keep_ids = {r["id"] for r in rows}
 
+    source_value = SOURCE_FIELD.get(args.source, args.source)
     print(f"Loaded {len(rows_raw)} records from {json_path} ({len(rows)} unique after dedup)")
 
     if args.dry_run:
@@ -291,6 +301,22 @@ def main():
         return
 
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+    if args.prune:
+        # Fetch all IDs for this source from DB and delete ones not in current JSON
+        resp = client.table("products").select("id").eq("source", source_value).execute()
+        db_ids = {r["id"] for r in (resp.data or [])}
+        to_delete = db_ids - keep_ids
+        if to_delete:
+            print(f"Pruning {len(to_delete)} removed records from DB…")
+            delete_list = list(to_delete)
+            for i in range(0, len(delete_list), args.batch_size):
+                batch = delete_list[i : i + args.batch_size]
+                client.table("products").delete().in_("id", batch).execute()
+                print(f"  deleted {min(i + args.batch_size, len(delete_list))}/{len(delete_list)}")
+        else:
+            print("Prune: nothing to delete.")
+
     total = 0
     for i in range(0, len(rows), args.batch_size):
         batch = rows[i : i + args.batch_size]
