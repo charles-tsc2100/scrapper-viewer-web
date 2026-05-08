@@ -203,7 +203,137 @@ async function initList() {
 }
 
 
+// ─── Gallery ──────────────────────────────────────────────────────────────────
+
+window._galleryImages = [];
+
+function openGallery(startIdx = 0) {
+  const modal = document.getElementById("gallery-modal");
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  _setGalleryMain(startIdx);
+  document.getElementById("gallery-thumbs").innerHTML = window._galleryImages.map((url, i) =>
+    `<img src="${url}" class="${i === startIdx ? "active" : ""}"
+          onclick="_setGalleryMain(${i})">`
+  ).join("");
+}
+
+function _setGalleryMain(idx) {
+  document.getElementById("gallery-main-img").src = window._galleryImages[idx];
+  document.querySelectorAll("#gallery-thumbs img").forEach((img, i) =>
+    img.classList.toggle("active", i === idx)
+  );
+}
+
+function closeGallery() {
+  document.getElementById("gallery-modal").classList.add("hidden");
+  document.body.style.overflow = "";
+}
+
+
+// ─── DXF viewer ───────────────────────────────────────────────────────────────
+
+function _renderDxfCanvas(entities, canvas) {
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = "#18181b";
+  ctx.fillRect(0, 0, W, H);
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const ext = (x, y) => {
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+  };
+
+  (entities || []).forEach(e => {
+    if (e.type === "LINE") {
+      ext(e.vertices[0].x, e.vertices[0].y);
+      ext(e.vertices[1].x, e.vertices[1].y);
+    } else if (e.type === "LWPOLYLINE" || e.type === "POLYLINE") {
+      (e.vertices || []).forEach(v => ext(v.x, v.y));
+    } else if (e.type === "CIRCLE" || e.type === "ARC") {
+      const r = e.r || e.radius || 0;
+      ext(e.center.x - r, e.center.y - r);
+      ext(e.center.x + r, e.center.y + r);
+    }
+  });
+
+  if (!isFinite(minX)) {
+    ctx.fillStyle = "#6b7280"; ctx.font = "14px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("No drawable entities found", W / 2, H / 2);
+    return;
+  }
+
+  const pad = 40;
+  const sc = Math.min((W - 2 * pad) / (maxX - minX || 1), (H - 2 * pad) / (maxY - minY || 1));
+  const ox = pad + ((W - 2 * pad) - (maxX - minX) * sc) / 2;
+  const oy = H - pad - ((H - 2 * pad) - (maxY - minY) * sc) / 2;
+  const tx = x => ox + (x - minX) * sc;
+  const ty = y => oy - (y - minY) * sc;
+
+  ctx.strokeStyle = "#93c5fd"; ctx.lineWidth = 1; ctx.lineCap = "round"; ctx.lineJoin = "round";
+
+  (entities || []).forEach(e => {
+    ctx.beginPath();
+    if (e.type === "LINE") {
+      ctx.moveTo(tx(e.vertices[0].x), ty(e.vertices[0].y));
+      ctx.lineTo(tx(e.vertices[1].x), ty(e.vertices[1].y));
+    } else if (e.type === "LWPOLYLINE") {
+      const v = e.vertices || [];
+      if (!v.length) return;
+      ctx.moveTo(tx(v[0].x), ty(v[0].y));
+      for (let i = 1; i < v.length; i++) ctx.lineTo(tx(v[i].x), ty(v[i].y));
+      if (e.shape) ctx.closePath();
+    } else if (e.type === "CIRCLE") {
+      ctx.arc(tx(e.center.x), ty(e.center.y), (e.r || 0) * sc, 0, Math.PI * 2);
+    } else if (e.type === "ARC") {
+      const r = (e.r || e.radius || 0) * sc;
+      const sa = (e.startAngle || 0) * Math.PI / 180;
+      const ea = (e.endAngle   || 0) * Math.PI / 180;
+      ctx.arc(tx(e.center.x), ty(e.center.y), r, -ea, -sa);
+    }
+    ctx.stroke();
+  });
+}
+
+async function viewDxf(url, name) {
+  const panel = document.getElementById("dxf-viewer-panel");
+  const wrap  = document.getElementById("dxf-canvas-wrap");
+  document.getElementById("dxf-viewer-name").textContent = name;
+  wrap.innerHTML = `<p class="text-gray-400 text-sm p-4">Loading ${name}…</p>`;
+  panel.classList.remove("hidden");
+  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  try {
+    const text = await fetch(url).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.text();
+    });
+    const dxf = new DxfParser().parseSync(text);
+    const canvas = document.createElement("canvas");
+    canvas.width  = wrap.clientWidth  || 800;
+    canvas.height = 480;
+    canvas.style.display = "block";
+    wrap.innerHTML = "";
+    wrap.appendChild(canvas);
+    _renderDxfCanvas(dxf.entities || [], canvas);
+  } catch (err) {
+    wrap.innerHTML = `<p class="text-red-400 text-sm p-4">Could not render drawing: ${err.message}</p>`;
+  }
+}
+
+function closeDxfViewer() {
+  document.getElementById("dxf-viewer-panel").classList.add("hidden");
+}
+
+
 // ─── Detail page ──────────────────────────────────────────────────────────────
+
+function setMainImage(el, url) {
+  document.getElementById("main-image").src = url;
+  document.querySelectorAll(".thumb-strip img").forEach(img => img.classList.remove("active"));
+  el.classList.add("active");
+}
 
 async function initDetail() {
   await requireAuth();
@@ -214,41 +344,50 @@ async function initDetail() {
   const { data, error } = await db.from("products").select("*").eq("id", id).single();
 
   if (error || !data) {
-    document.getElementById("content").innerHTML =
-      `<p class='text-red-400'>Product not found.</p>`;
+    document.getElementById("content").innerHTML = `<p class='text-red-400'>Product not found.</p>`;
     return;
   }
 
   document.title = `${data.model} — Product Catalogue`;
   document.getElementById("breadcrumb-model").textContent = data.model;
 
-  // Images
+  // Images — 1-row strip, max 5 thumbnails shown; Show more opens gallery
   const images = data.image_urls || [];
-  const mainImg  = document.getElementById("main-image");
-  const thumbGrid = document.getElementById("thumb-grid");
+  window._galleryImages = images;
+  const mainImg   = document.getElementById("main-image");
+  const strip     = document.getElementById("thumb-strip");
+  const showAllBtn = document.getElementById("show-all-btn");
 
   if (images.length) {
     mainImg.src = images[0];
     mainImg.alt = data.model;
-    thumbGrid.innerHTML = images.map((url, i) =>
-      `<img src="${url}" alt="${data.model} ${i+1}" onclick="document.getElementById('main-image').src='${url}'">`
+    const MAX_THUMBS = 5;
+    const visible = images.slice(0, MAX_THUMBS);
+    strip.innerHTML = visible.map((url, i) =>
+      `<img src="${url}" alt="${data.model} ${i + 1}" class="${i === 0 ? "active" : ""}"
+            onclick="setMainImage(this, '${url}')">`
     ).join("");
+    if (images.length > 1) {
+      const extra = images.length - MAX_THUMBS;
+      showAllBtn.textContent = extra > 0 ? `Show more (${extra} more)` : "Show all";
+      showAllBtn.classList.remove("hidden");
+    }
   } else {
     mainImg.parentElement.classList.add("hidden");
   }
 
   // Core spec table
   const specRows = [
-    ["Brand",          data.brand],
-    ["Model",          data.model],
-    ["Category",       data.category],
-    ["Subcategory",    data.subcategory],
-    ["Material",       data.material],
-    ["Finish",         data.finish],
-    ["Load Capacity",    data.load_capacity_kg  != null ? `${data.load_capacity_kg} kg`  : null],
-    ["Max Door Height",  data.door_height_mm    != null ? `${data.door_height_mm} mm`    : null],
-    ["Max Door Width",   data.door_width_mm     != null ? `${data.door_width_mm} mm`     : null],
-    ["Door Thickness",   data.door_thickness_mm != null ? `${data.door_thickness_mm} mm` : null],
+    ["Brand",         data.brand],
+    ["Model",         data.model],
+    ["Category",      data.category],
+    ["Subcategory",   data.subcategory],
+    ["Material",      data.material],
+    ["Finish",        data.finish],
+    ["Load Capacity",  data.load_capacity_kg  != null ? `${data.load_capacity_kg} kg`  : null],
+    ["Max Door Height",data.door_height_mm    != null ? `${data.door_height_mm} mm`    : null],
+    ["Max Door Width", data.door_width_mm     != null ? `${data.door_width_mm} mm`     : null],
+    ["Door Thickness", data.door_thickness_mm != null ? `${data.door_thickness_mm} mm` : null],
   ].filter(([, v]) => v != null);
 
   document.getElementById("spec-table").innerHTML = specRows.map(([k, v]) =>
@@ -263,8 +402,7 @@ async function initDetail() {
     "Slug","Hero Image","Finish Image","CAD Drawings","Installation PDF","Brand",
     "Material","Finish","Height","Thickness","Load Capacity",
   ]);
-  const extra = Object.entries(data.raw || {})
-    .filter(([k, v]) => !promoted.has(k) && v != null && v !== "");
+  const extra = Object.entries(data.raw || {}).filter(([k, v]) => !promoted.has(k) && v != null && v !== "");
   if (extra.length) {
     document.getElementById("extra-specs").innerHTML = extra.map(([k, v]) =>
       `<tr><td class="py-1">${k}</td><td class="py-1 text-gray-800">${v}</td></tr>`
@@ -273,36 +411,60 @@ async function initDetail() {
     document.getElementById("extra-section").classList.add("hidden");
   }
 
-  // PDF link — blob download so cross-origin PDF is saved, not displayed as broken
+  // Spec Sheet PDF button
   if (data.spec_pdf_url) {
-    const pdfUrl = data.spec_pdf_url;
+    const pdfUrl  = data.spec_pdf_url;
     const pdfName = decodeURIComponent(pdfUrl.split("/").pop().split("?")[0]);
     const a = document.getElementById("pdf-link");
-    a.onclick = (e) => { e.preventDefault(); downloadFile(pdfUrl, pdfName); };
+    a.onclick = e => { e.preventDefault(); downloadFile(pdfUrl, pdfName); };
     a.classList.remove("hidden");
   }
 
-  // Drawing links
-  const drawings = data.drawing_urls || [];
-  if (drawings.length) {
-    document.getElementById("drawing-links").innerHTML = drawings.map(url => {
+  // Split drawing_urls into PDFs (shown below spec sheet) and DXF files (viewer)
+  const drawings    = data.drawing_urls || [];
+  const pdfDrawings = drawings.filter(u => u.toLowerCase().split("?")[0].endsWith(".pdf"));
+  const dxfFiles    = drawings.filter(u => !u.toLowerCase().split("?")[0].endsWith(".pdf"));
+
+  // Extra PDFs listed directly below the Spec Sheet button
+  if (pdfDrawings.length) {
+    document.getElementById("extra-pdf-links").innerHTML = pdfDrawings.map(url => {
       const name = decodeURIComponent(url.split("/").pop().split("?")[0]);
-      const isPdf = name.toLowerCase().endsWith(".pdf");
-      const svgIcon = `<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      return `<a href="#" onclick="event.preventDefault(); downloadFile('${url}', '${name}')"
+                 class="inline-flex items-center gap-2 text-sm text-red-700 hover:underline cursor-pointer">
+                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>`;
-      if (isPdf) {
-        return `<a href="${url}" target="_blank"
-                   class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
-                  ${svgIcon}${name}
-                </a>`;
-      }
-      return `<a href="${url}" target="_blank"
-                 onclick="event.preventDefault(); downloadFile('${url}', '${name}')"
-                 class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline cursor-pointer">
-                ${svgIcon}${name}
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                ${name}
               </a>`;
+    }).join("");
+  }
+
+  // DXF drawings with View + Download buttons
+  if (dxfFiles.length) {
+    document.getElementById("drawing-links").innerHTML = dxfFiles.map(url => {
+      const name = decodeURIComponent(url.split("/").pop().split("?")[0]);
+      return `<div class="flex items-center gap-2 flex-wrap">
+                <button onclick="viewDxf('${url}', '${name}')"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                  View
+                </button>
+                <button onclick="downloadFile('${url}', '${name}')"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition-colors">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                  </svg>
+                  Download
+                </button>
+                <span class="text-xs text-gray-500 font-mono">${name}</span>
+              </div>`;
     }).join("");
     document.getElementById("drawing-section").classList.remove("hidden");
   }

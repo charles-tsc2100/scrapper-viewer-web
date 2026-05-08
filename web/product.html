@@ -9,7 +9,6 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-  <!-- Inject Supabase credentials -->
   <script>
     window.ENV = {
       SUPABASE_URL:      "https://txxkearoajgchblunzrt.supabase.co",
@@ -27,17 +26,20 @@
   </header>
 
   <main class="max-w-4xl mx-auto px-4 py-6">
-
     <div id="loading" class="text-gray-400 py-16 text-center">Loading…</div>
 
     <div id="content" class="hidden space-y-8">
 
       <!-- Image section -->
       <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div class="flex items-center justify-center bg-gray-50 p-4 min-h-[200px]">
+        <div class="relative flex items-center justify-center bg-gray-50 p-4 min-h-[200px]">
           <img id="main-image" src="" alt="" class="max-w-full rounded-xl" style="max-height:420px;object-fit:contain;">
+          <button id="show-all-btn" onclick="openGallery()"
+                  class="hidden absolute bottom-4 right-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full hover:bg-black/80 transition-colors">
+            Show more
+          </button>
         </div>
-        <div id="thumb-grid" class="thumb-grid p-4"></div>
+        <div id="thumb-strip" class="thumb-strip"></div>
       </div>
 
       <!-- Specs -->
@@ -57,34 +59,58 @@
       </div>
 
       <!-- Downloads -->
-      <div class="bg-white rounded-2xl shadow-sm p-6 space-y-3">
+      <div class="bg-white rounded-2xl shadow-sm p-6 space-y-4">
         <h2 class="text-lg font-semibold text-gray-800">Downloads</h2>
 
-        <a id="pdf-link" href="#"
-           class="hidden inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-50 text-red-700 text-sm hover:bg-red-100 transition-colors cursor-pointer">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-          </svg>
-          Spec Sheet (PDF)
-        </a>
+        <!-- Spec Sheet PDF + related PDFs directly below -->
+        <div id="pdf-section" class="space-y-2">
+          <a id="pdf-link" href="#"
+             class="hidden inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-50 text-red-700 text-sm hover:bg-red-100 transition-colors cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
+            Spec Sheet (PDF)
+          </a>
+          <div id="extra-pdf-links" class="flex flex-col gap-1 pl-1"></div>
+        </div>
 
-        <div id="drawing-section" class="hidden space-y-2">
-          <p class="text-sm font-medium text-gray-600">Drawings</p>
-          <div id="drawing-links" class="flex flex-wrap gap-3"></div>
+        <!-- Drawings: View + Download per file, with inline DXF viewer -->
+        <div id="drawing-section" class="hidden space-y-3">
+          <p class="text-sm font-semibold text-gray-600">Drawings</p>
+          <div id="drawing-links" class="flex flex-col gap-2"></div>
+
+          <!-- Inline DXF viewer panel -->
+          <div id="dxf-viewer-panel" class="hidden rounded-xl overflow-hidden border border-gray-200 mt-2">
+            <div class="flex items-center justify-between px-4 py-2 bg-gray-900">
+              <span id="dxf-viewer-name" class="text-white text-xs font-mono truncate flex-1 mr-4"></span>
+              <button onclick="closeDxfViewer()" class="text-gray-400 hover:text-white text-xl leading-none">×</button>
+            </div>
+            <div id="dxf-canvas-wrap" class="bg-zinc-900 flex items-center justify-center" style="height:480px;">
+              <p id="dxf-status" class="text-gray-500 text-sm">Select a drawing to view</p>
+            </div>
+          </div>
         </div>
 
         <p class="text-xs text-gray-400">
-          Source:
-          <a id="source-link" href="#" target="_blank" rel="noopener"
-             class="text-blue-500 hover:underline">View on manufacturer site</a>
+          Source: <a id="source-link" href="#" target="_blank" rel="noopener" class="text-blue-500 hover:underline">View on manufacturer site</a>
         </p>
       </div>
 
     </div><!-- /content -->
   </main>
 
+  <!-- Full-screen gallery modal -->
+  <div id="gallery-modal" onclick="if(event.target===this)closeGallery()"
+       class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col items-center justify-center p-4">
+    <button onclick="closeGallery()" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 leading-none z-10">×</button>
+    <img id="gallery-main-img" src="" alt=""
+         class="max-w-full rounded-lg select-none" style="max-height:75vh;object-fit:contain;">
+    <div id="gallery-thumbs" class="flex gap-2 mt-4 overflow-x-auto py-2 max-w-full px-4"></div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.js"></script>
   <script src="app.js"></script>
   <script>initDetail();</script>
 </body>

@@ -1,21 +1,42 @@
 /* Minor overrides on top of Tailwind */
 
-/* Thumbnail grid */
-.thumb-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+/* Single-row thumbnail strip */
+.thumb-strip {
+  display: flex;
+  flex-direction: row;
   gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  overflow: hidden;
 }
+.thumb-strip:empty { display: none; }
 
-.thumb-grid img {
-  width: 100%;
-  aspect-ratio: 1;
+.thumb-strip img {
+  width: 72px;
+  height: 72px;
   object-fit: cover;
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: opacity 0.15s;
+  flex-shrink: 0;
+  transition: opacity 0.15s, outline 0.1s;
+  outline: 2px solid transparent;
 }
-.thumb-grid img:hover { opacity: 0.8; }
+.thumb-strip img:hover { opacity: 0.8; }
+.thumb-strip img.active { outline: 2px solid #2563eb; }
+
+/* Gallery modal thumbnails */
+#gallery-thumbs img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.6;
+  outline: 2px solid transparent;
+  transition: opacity 0.15s, outline 0.1s;
+}
+#gallery-thumbs img:hover { opacity: 1; }
+#gallery-thumbs img.active { opacity: 1; outline: 2px solid #60a5fa; }
 
 /* Main image on detail page */
 #main-image {
