@@ -304,6 +304,17 @@ async function viewDxf(url, name) {
   panel.classList.remove("hidden");
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
+  const ext = name.toLowerCase().split(".").pop();
+
+  if (ext === "svg") {
+    wrap.style.background = "#fff";
+    wrap.innerHTML = `<img src="${url}" alt="${name}"
+                          style="max-width:100%;max-height:480px;object-fit:contain;padding:16px;display:block;margin:auto;">`;
+    return;
+  }
+
+  // DXF: parse and render on canvas
+  wrap.style.background = "";
   try {
     const text = await fetch(url).then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
