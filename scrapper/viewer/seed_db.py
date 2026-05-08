@@ -57,7 +57,8 @@ def split_drawing_files(paths: list[str]) -> tuple[list[str], list[str]]:
     """Return (image_paths, cad_paths) split by file extension."""
     imgs, cad = [], []
     for p in paths:
-        ext = Path(p.replace("\\", "/").split("/")[-1]).rsplit(".", 1)
+        fname = p.replace("\\", "/").split("/")[-1]
+        ext = fname.rsplit(".", 1)
         suffix = ("." + ext[-1]).lower() if len(ext) > 1 else ""
         if suffix in _IMAGE_EXTS:
             imgs.append(p)
