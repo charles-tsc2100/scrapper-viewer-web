@@ -257,14 +257,14 @@ function _pointsBbox(pts) {
 function _renderDxfCanvas(entities, canvas) {
   const ctx = canvas.getContext("2d");
   const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = "#18181b";
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, W, H);
 
   const list = entities || [];
   const allPts = list.flatMap(_entityPoints);
 
   if (!allPts.length) {
-    ctx.fillStyle = "#6b7280"; ctx.font = "14px sans-serif"; ctx.textAlign = "center";
+    ctx.fillStyle = "#9ca3af"; ctx.font = "14px sans-serif"; ctx.textAlign = "center";
     ctx.fillText("No drawable entities found", W / 2, H / 2);
     return;
   }
@@ -293,7 +293,7 @@ function _renderDxfCanvas(entities, canvas) {
   const tx = x => ox + (x - minX) * sc;
   const ty = y => oy - (y - minY) * sc;
 
-  ctx.strokeStyle = "#93c5fd"; ctx.lineWidth = 1; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 1; ctx.lineCap = "round"; ctx.lineJoin = "round";
 
   // Render content entities only (border frame omitted)
   content.forEach(e => {
