@@ -121,15 +121,11 @@ def normalise_sugatsune(record: dict, manifest: dict) -> dict:
     item  = record.get("Item Code", model)
     uid   = f"sugatsune:{item}"
 
-    image_files  = split_paths(record.get("Item Image", ""))
-    series_imgs  = split_paths(record.get("Series Images", ""))
-    pdf_files    = split_paths(record.get("Spec Sheet PDF", ""))
+    image_files   = split_paths(record.get("Item Image", ""))
+    pdf_files     = split_paths(record.get("Spec Sheet PDF", ""))
     drawing_files = split_paths(record.get("Drawings", ""))
 
-    image_urls = (
-        resolve_urls(image_files,  "sugatsune/images/items",  manifest) +
-        resolve_urls(series_imgs,  "sugatsune/images/series", manifest)
-    )
+    image_urls = resolve_urls(image_files, "sugatsune/images/items", manifest)
     drawing_urls = resolve_urls(drawing_files, "sugatsune/drawings", manifest)
 
     spec_pdf_url = None
