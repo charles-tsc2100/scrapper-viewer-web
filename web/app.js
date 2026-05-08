@@ -3,6 +3,21 @@
 const { createClient } = supabase;
 const db = createClient(window.ENV.SUPABASE_URL, window.ENV.SUPABASE_ANON_KEY);
 
+function downloadFile(url, filename) {
+  fetch(url)
+    .then(r => { if (!r.ok) throw new Error("fetch failed"); return r.blob(); })
+    .then(blob => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 100);
+    })
+    .catch(() => window.open(url, "_blank"));
+}
+
 async function requireAuth() {
   const { data: { session } } = await db.auth.getSession();
   if (!session) location.replace("login.html");
@@ -258,10 +273,11 @@ async function initDetail() {
     document.getElementById("extra-section").classList.add("hidden");
   }
 
-  // PDF link
+  // PDF link — opens in new tab for inline viewing
   if (data.spec_pdf_url) {
     const a = document.getElementById("pdf-link");
     a.href = data.spec_pdf_url;
+    a.target = "_blank";
     a.classList.remove("hidden");
   }
 
@@ -269,14 +285,22 @@ async function initDetail() {
   const drawings = data.drawing_urls || [];
   if (drawings.length) {
     document.getElementById("drawing-links").innerHTML = drawings.map(url => {
-      const name = url.split("/").pop();
-      return `<a href="${url}" target="_blank" download
-                 class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      const name = decodeURIComponent(url.split("/").pop().split("?")[0]);
+      const isPdf = name.toLowerCase().endsWith(".pdf");
+      const svgIcon = `<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-                ${name}
+                </svg>`;
+      if (isPdf) {
+        return `<a href="${url}" target="_blank"
+                   class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+                  ${svgIcon}${name}
+                </a>`;
+      }
+      return `<a href="${url}" target="_blank"
+                 onclick="event.preventDefault(); downloadFile('${url}', '${name}')"
+                 class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline cursor-pointer">
+                ${svgIcon}${name}
               </a>`;
     }).join("");
     document.getElementById("drawing-section").classList.remove("hidden");

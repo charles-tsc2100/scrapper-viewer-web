@@ -54,13 +54,25 @@ def split_paths(value: str | None) -> list[str]:
 def resolve_urls(filenames: list[str], prefix: str, manifest: dict) -> list[str]:
     urls = []
     for f in filenames:
-        key = f"output/{prefix}/{f}"
-        if key in manifest:
-            urls.append(manifest[key])
+        f_norm = f.replace("\\", "/")
+        # If the filename already contains a path, use it directly under output/
+        if "/" in f_norm:
+            key = f"output/{f_norm}"
+            if key in manifest:
+                urls.append(manifest[key])
+                continue
+        # Standard: prefix + bare filename
+        key_fwd = f"output/{prefix}/{f_norm}"
+        key_bak = key_fwd.replace("/", "\\")
+        if key_fwd in manifest:
+            urls.append(manifest[key_fwd])
+        elif key_bak in manifest:
+            urls.append(manifest[key_bak])
         else:
-            # fallback: also try without subdirectory nesting
+            # Fallback: match by filename alone
+            fname = f_norm.split("/")[-1]
             for k, v in manifest.items():
-                if k.endswith("/" + f):
+                if k.replace("\\", "/").endswith("/" + fname):
                     urls.append(v)
                     break
     return urls
@@ -109,14 +121,17 @@ def normalise_sugatsune(record: dict, manifest: dict) -> dict:
     item  = record.get("Item Code", model)
     uid   = f"sugatsune:{item}"
 
-    image_files = split_paths(record.get("Item Image", ""))
-    series_imgs = split_paths(record.get("Series Images", ""))
-    pdf_files   = split_paths(record.get("Spec Sheet PDF", ""))
+    image_files  = split_paths(record.get("Item Image", ""))
+    series_imgs  = split_paths(record.get("Series Images", ""))
+    pdf_files    = split_paths(record.get("Spec Sheet PDF", ""))
+    drawing_files = split_paths(record.get("Drawings", ""))
 
-    image_urls  = (
+    image_urls = (
         resolve_urls(image_files,  "sugatsune/images/items",  manifest) +
         resolve_urls(series_imgs,  "sugatsune/images/series", manifest)
     )
+    drawing_urls = resolve_urls(drawing_files, "sugatsune/drawings", manifest)
+
     spec_pdf_url = None
     if pdf_files:
         pdfs = resolve_urls(pdf_files, "sugatsune/specs", manifest)
@@ -127,19 +142,19 @@ def normalise_sugatsune(record: dict, manifest: dict) -> dict:
         "source":       "sugatsune",
         "brand":        "Sugatsune",
         "model":        model,
-        "name":         record.get("Name", item),
+        "name":         record.get("Item Name", item),
         "category":     record.get("Category"),
         "subcategory":  record.get("Subcategory"),
         "material":     record.get("Material"),
         "finish":       record.get("Finish"),
         "load_capacity_kg":  None,
-        "door_height_mm":    parse_numeric(record.get("Height")),
+        "door_height_mm":    parse_numeric(record.get("Height H")),
         "door_width_mm":     None,
-        "door_thickness_mm": parse_numeric(record.get("Thickness")),
+        "door_thickness_mm": parse_numeric(record.get("Thickness D (mm)")),
         "spec_pdf_url":  spec_pdf_url,
-        "drawing_urls":  [],
+        "drawing_urls":  drawing_urls,
         "image_urls":    image_urls,
-        "source_url":    record.get("URL"),
+        "source_url":    record.get("Series URL"),
         "raw":           record,
     }
 
@@ -147,21 +162,22 @@ def normalise_sugatsune(record: dict, manifest: dict) -> dict:
 def normalise_simonswerk(record: dict, manifest: dict) -> dict:
     model = record.get("Model", "")
     slug  = record.get("Slug", model)
-    uid   = f"simonswerk:{slug}"
+    finish_code = re.sub(r"[^a-z0-9]+", "-", (record.get("Finish Code") or "").lower()).strip("-")
+    uid   = f"simonswerk:{slug}:{finish_code}" if finish_code else f"simonswerk:{slug}"
 
     hero_files   = split_paths(record.get("Hero Image", ""))
     finish_files = split_paths(record.get("Finish Image", ""))
-    cad_files    = split_paths(record.get("CAD Drawings", ""))
+    cad_files    = split_paths(record.get("CAD Drawings (DXF)", ""))
     pdf_files    = split_paths(record.get("Installation PDF", ""))
 
     image_urls   = (
-        resolve_urls(hero_files,   "simonswerk/images/hero",   manifest) +
-        resolve_urls(finish_files, "simonswerk/images/finish", manifest)
+        resolve_urls(finish_files, "simonswerk/images/finish", manifest) +
+        resolve_urls(hero_files,   "simonswerk/images/hero",   manifest)
     )
     drawing_urls = resolve_urls(cad_files, "simonswerk/cad", manifest)
     spec_pdf_url = None
     if pdf_files:
-        pdfs = resolve_urls(pdf_files, "simonswerk/docs/installation", manifest)
+        pdfs = resolve_urls(pdf_files, "simonswerk/docs", manifest)
         spec_pdf_url = pdfs[0] if pdfs else None
 
     return {
@@ -169,11 +185,11 @@ def normalise_simonswerk(record: dict, manifest: dict) -> dict:
         "source":       "simonswerk",
         "brand":        record.get("Brand", "Simonswerk"),
         "model":        model,
-        "name":         record.get("Name", model),
-        "category":     record.get("Category"),
-        "subcategory":  record.get("Subcategory"),
+        "name":         record.get("Subtitle", model),
+        "category":     record.get("Type of Door Leaf"),
+        "subcategory":  record.get("Type of Frame"),
         "material":     None,
-        "finish":       record.get("Finish"),
+        "finish":       record.get("Finish Name"),
         "load_capacity_kg":  parse_numeric(record.get("Load Capacity")),
         "door_height_mm":    None,
         "door_width_mm":     None,
@@ -181,7 +197,7 @@ def normalise_simonswerk(record: dict, manifest: dict) -> dict:
         "spec_pdf_url":  spec_pdf_url,
         "drawing_urls":  drawing_urls,
         "image_urls":    image_urls,
-        "source_url":    record.get("URL"),
+        "source_url":    record.get("Product URL"),
         "raw":           record,
     }
 
@@ -215,9 +231,14 @@ def main():
     records  = json.loads(json_path.read_text(encoding="utf-8"))
 
     normalise = NORMALISERS[args.source]
-    rows = [normalise(r, manifest) for r in records]
+    rows_raw = [normalise(r, manifest) for r in records]
+    # Deduplicate by id — keep last occurrence (most complete record)
+    seen = {}
+    for r in rows_raw:
+        seen[r["id"]] = r
+    rows = list(seen.values())
 
-    print(f"Loaded {len(rows)} records from {json_path}")
+    print(f"Loaded {len(rows_raw)} records from {json_path} ({len(rows)} unique after dedup)")
 
     if args.dry_run:
         print(json.dumps(rows[:3], indent=2, ensure_ascii=False, default=str))
