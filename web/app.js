@@ -273,11 +273,12 @@ async function initDetail() {
     document.getElementById("extra-section").classList.add("hidden");
   }
 
-  // PDF link — opens in new tab for inline viewing
+  // PDF link — blob download so cross-origin PDF is saved, not displayed as broken
   if (data.spec_pdf_url) {
+    const pdfUrl = data.spec_pdf_url;
+    const pdfName = decodeURIComponent(pdfUrl.split("/").pop().split("?")[0]);
     const a = document.getElementById("pdf-link");
-    a.href = data.spec_pdf_url;
-    a.target = "_blank";
+    a.onclick = (e) => { e.preventDefault(); downloadFile(pdfUrl, pdfName); };
     a.classList.remove("hidden");
   }
 
