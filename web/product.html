@@ -80,16 +80,6 @@
           <p class="text-sm font-semibold text-gray-600">Drawings</p>
           <div id="drawing-links" class="flex flex-col gap-2"></div>
 
-          <!-- Inline DXF viewer panel -->
-          <div id="dxf-viewer-panel" class="hidden rounded-xl overflow-hidden border border-gray-200 mt-2">
-            <div class="flex items-center justify-between px-4 py-2 bg-gray-900">
-              <span id="dxf-viewer-name" class="text-white text-xs font-mono truncate flex-1 mr-4"></span>
-              <button onclick="closeDxfViewer()" class="text-gray-400 hover:text-white text-xl leading-none">×</button>
-            </div>
-            <div id="dxf-canvas-wrap" class="bg-white flex items-center justify-center" style="height:480px;">
-              <p id="dxf-status" class="text-gray-500 text-sm">Select a drawing to view</p>
-            </div>
-          </div>
         </div>
 
         <p class="text-xs text-gray-400">
@@ -110,8 +100,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.js"></script>
-  <script src="app.js"></script>
+<script src="app.js"></script>
   <script>initDetail();</script>
 </body>
 </html>

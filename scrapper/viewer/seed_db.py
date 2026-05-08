@@ -51,6 +51,21 @@ def split_paths(value: str | None) -> list[str]:
     return [p.strip() for p in value.split(";") if p.strip()]
 
 
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+
+def split_drawing_files(paths: list[str]) -> tuple[list[str], list[str]]:
+    """Return (image_paths, cad_paths) split by file extension."""
+    imgs, cad = [], []
+    for p in paths:
+        ext = Path(p.replace("\\", "/").split("/")[-1]).rsplit(".", 1)
+        suffix = ("." + ext[-1]).lower() if len(ext) > 1 else ""
+        if suffix in _IMAGE_EXTS:
+            imgs.append(p)
+        else:
+            cad.append(p)
+    return imgs, cad
+
+
 def filter_by_model(paths: list[str], model: str) -> list[str]:
     """Keep only files whose filename contains the model identifier."""
     if not model:
@@ -104,9 +119,11 @@ def normalise_elmes(record: dict, manifest: dict) -> dict:
 
     image_files   = split_paths(record.get("Images", ""))
     drawing_files = split_paths(record.get("Drawings", ""))
+    drawing_imgs, drawing_cad = split_drawing_files(drawing_files)
 
-    image_urls   = resolve_urls(image_files,   "elmes/images",   manifest)
-    drawing_urls = resolve_urls(drawing_files, "elmes/drawings", manifest)
+    image_urls   = (resolve_urls(image_files,    "elmes/images",    manifest) +
+                    resolve_urls(drawing_imgs,   "elmes/drawings",  manifest))
+    drawing_urls = resolve_urls(drawing_cad, "elmes/drawings", manifest)
 
     return {
         "id":           f"artunion:{model}",
@@ -138,9 +155,11 @@ def normalise_sugatsune(record: dict, manifest: dict) -> dict:
     image_files   = split_paths(record.get("Item Image", ""))
     pdf_files     = split_paths(record.get("Spec Sheet PDF", ""))
     drawing_files = filter_by_model(split_paths(record.get("Drawings", "")), model)
+    drawing_imgs, drawing_cad = split_drawing_files(drawing_files)
 
-    image_urls = resolve_urls(image_files, "sugatsune/images/items", manifest)
-    drawing_urls = resolve_urls(drawing_files, "sugatsune/drawings", manifest)
+    image_urls   = (resolve_urls(image_files,   "sugatsune/images/items", manifest) +
+                    resolve_urls(drawing_imgs,  "sugatsune/drawings",     manifest))
+    drawing_urls = resolve_urls(drawing_cad, "sugatsune/drawings", manifest)
 
     spec_pdf_url = None
     if pdf_files:
@@ -180,11 +199,13 @@ def normalise_simonswerk(record: dict, manifest: dict) -> dict:
     cad_files    = split_paths(record.get("CAD Drawings (DXF)", ""))
     pdf_files    = split_paths(record.get("Installation PDF", ""))
 
+    cad_imgs, cad_only = split_drawing_files(cad_files)
     image_urls   = (
         resolve_urls(finish_files, "simonswerk/images/finish", manifest) +
-        resolve_urls(hero_files,   "simonswerk/images/hero",   manifest)
+        resolve_urls(hero_files,   "simonswerk/images/hero",   manifest) +
+        resolve_urls(cad_imgs,     "simonswerk/cad",           manifest)
     )
-    drawing_urls = resolve_urls(cad_files, "simonswerk/cad", manifest)
+    drawing_urls = resolve_urls(cad_only, "simonswerk/cad", manifest)
     spec_pdf_url = None
     if pdf_files:
         pdfs = resolve_urls(pdf_files, "simonswerk/docs", manifest)

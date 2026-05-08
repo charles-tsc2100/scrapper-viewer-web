@@ -231,135 +231,7 @@ function closeGallery() {
 }
 
 
-// ─── DXF viewer ───────────────────────────────────────────────────────────────
-
-function _entityPoints(e) {
-  if (e.type === "LINE") {
-    return [[e.vertices[0].x, e.vertices[0].y], [e.vertices[1].x, e.vertices[1].y]];
-  } else if (e.type === "LWPOLYLINE" || e.type === "POLYLINE") {
-    return (e.vertices || []).map(v => [v.x, v.y]);
-  } else if (e.type === "CIRCLE" || e.type === "ARC") {
-    const r = e.r || e.radius || 0;
-    return [[e.center.x - r, e.center.y - r], [e.center.x + r, e.center.y + r]];
-  }
-  return [];
-}
-
-function _pointsBbox(pts) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const [x, y] of pts) {
-    minX = Math.min(minX, x); minY = Math.min(minY, y);
-    maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
-  }
-  return { minX, minY, maxX, maxY };
-}
-
-function _renderDxfCanvas(entities, canvas) {
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, W, H);
-
-  const list = entities || [];
-  const allPts = list.flatMap(_entityPoints);
-
-  if (!allPts.length) {
-    ctx.fillStyle = "#9ca3af"; ctx.font = "14px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("No drawable entities found", W / 2, H / 2);
-    return;
-  }
-
-  // Full bounding box of everything
-  const full = _pointsBbox(allPts);
-  const fullArea = (full.maxX - full.minX || 1) * (full.maxY - full.minY || 1);
-
-  // Exclude entities whose own bbox covers >85% of the full area — these are
-  // paper border / title block frames that would push the real drawing off-screen.
-  const content = list.filter(e => {
-    const pts = _entityPoints(e);
-    if (!pts.length) return true;
-    const bb = _pointsBbox(pts);
-    const area = (bb.maxX - bb.minX) * (bb.maxY - bb.minY);
-    return area / fullArea < 0.85;
-  });
-
-  const viewPts = content.flatMap(_entityPoints);
-  const { minX, minY, maxX, maxY } = viewPts.length ? _pointsBbox(viewPts) : full;
-
-  const pad = 40;
-  const sc = Math.min((W - 2 * pad) / (maxX - minX || 1), (H - 2 * pad) / (maxY - minY || 1));
-  const ox = pad + ((W - 2 * pad) - (maxX - minX) * sc) / 2;
-  const oy = H - pad - ((H - 2 * pad) - (maxY - minY) * sc) / 2;
-  const tx = x => ox + (x - minX) * sc;
-  const ty = y => oy - (y - minY) * sc;
-
-  ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 1; ctx.lineCap = "round"; ctx.lineJoin = "round";
-
-  // Render content entities only (border frame omitted)
-  content.forEach(e => {
-    ctx.beginPath();
-    if (e.type === "LINE") {
-      ctx.moveTo(tx(e.vertices[0].x), ty(e.vertices[0].y));
-      ctx.lineTo(tx(e.vertices[1].x), ty(e.vertices[1].y));
-    } else if (e.type === "LWPOLYLINE") {
-      const v = e.vertices || [];
-      if (!v.length) return;
-      ctx.moveTo(tx(v[0].x), ty(v[0].y));
-      for (let i = 1; i < v.length; i++) ctx.lineTo(tx(v[i].x), ty(v[i].y));
-      if (e.shape) ctx.closePath();
-    } else if (e.type === "CIRCLE") {
-      ctx.arc(tx(e.center.x), ty(e.center.y), (e.r || 0) * sc, 0, Math.PI * 2);
-    } else if (e.type === "ARC") {
-      const r = (e.r || e.radius || 0) * sc;
-      const sa = (e.startAngle || 0) * Math.PI / 180;
-      const ea = (e.endAngle   || 0) * Math.PI / 180;
-      ctx.arc(tx(e.center.x), ty(e.center.y), r, -ea, -sa);
-    }
-    ctx.stroke();
-  });
-}
-
-async function viewDxf(url, name) {
-  const panel = document.getElementById("dxf-viewer-panel");
-  const wrap  = document.getElementById("dxf-canvas-wrap");
-  document.getElementById("dxf-viewer-name").textContent = name;
-  wrap.innerHTML = `<p class="text-gray-400 text-sm p-4">Loading ${name}…</p>`;
-  panel.classList.remove("hidden");
-  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-
-  const ext = name.toLowerCase().split(".").pop();
-  const isImage = ["svg", "jpg", "jpeg", "png", "gif", "webp"].includes(ext);
-
-  if (isImage) {
-    wrap.style.background = ext === "svg" ? "#fff" : "#18181b";
-    wrap.innerHTML = `<img src="${url}" alt="${name}"
-                          style="max-width:100%;max-height:480px;object-fit:contain;padding:16px;display:block;margin:auto;">`;
-    return;
-  }
-
-  // DXF: parse and render on canvas
-  wrap.style.background = "";
-  try {
-    const text = await fetch(url).then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.text();
-    });
-    const dxf = new DxfParser().parseSync(text);
-    const canvas = document.createElement("canvas");
-    canvas.width  = wrap.clientWidth  || 800;
-    canvas.height = 480;
-    canvas.style.display = "block";
-    wrap.innerHTML = "";
-    wrap.appendChild(canvas);
-    _renderDxfCanvas(dxf.entities || [], canvas);
-  } catch (err) {
-    wrap.innerHTML = `<p class="text-red-400 text-sm p-4">Could not render drawing: ${err.message}</p>`;
-  }
-}
-
-function closeDxfViewer() {
-  document.getElementById("dxf-viewer-panel").classList.add("hidden");
-}
+// (DXF canvas viewer removed — drawing JPGs now appear in the image gallery)
 
 
 // ─── Detail page ──────────────────────────────────────────────────────────────
@@ -455,12 +327,12 @@ async function initDetail() {
     a.classList.remove("hidden");
   }
 
-  // Split drawing_urls into PDFs (shown below spec sheet) and DXF files (viewer)
+  // drawing_urls now only contains non-image files (DXF, SVG, PDF)
   const drawings    = data.drawing_urls || [];
   const pdfDrawings = drawings.filter(u => u.toLowerCase().split("?")[0].endsWith(".pdf"));
-  const dxfFiles    = drawings.filter(u => !u.toLowerCase().split("?")[0].endsWith(".pdf"));
+  const cadFiles    = drawings.filter(u => !u.toLowerCase().split("?")[0].endsWith(".pdf"));
 
-  // Extra PDFs listed directly below the Spec Sheet button
+  // PDFs listed directly below the Spec Sheet button
   if (pdfDrawings.length) {
     document.getElementById("extra-pdf-links").innerHTML = pdfDrawings.map(url => {
       const name = decodeURIComponent(url.split("/").pop().split("?")[0]);
@@ -475,31 +347,18 @@ async function initDetail() {
     }).join("");
   }
 
-  // DXF drawings with View + Download buttons
-  if (dxfFiles.length) {
-    document.getElementById("drawing-links").innerHTML = dxfFiles.map(url => {
+  // CAD/DXF files — download only
+  if (cadFiles.length) {
+    document.getElementById("drawing-links").innerHTML = cadFiles.map(url => {
       const name = decodeURIComponent(url.split("/").pop().split("?")[0]);
-      return `<div class="flex items-center gap-2 flex-wrap">
-                <button onclick="viewDxf('${url}', '${name}')"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                  </svg>
-                  View
-                </button>
-                <button onclick="downloadFile('${url}', '${name}')"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition-colors">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                  </svg>
-                  Download
-                </button>
-                <span class="text-xs text-gray-500 font-mono">${name}</span>
-              </div>`;
+      return `<a href="#" onclick="event.preventDefault(); downloadFile('${url}', '${name}')"
+                 class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 transition-colors">
+                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                ${name}
+              </a>`;
     }).join("");
     document.getElementById("drawing-section").classList.remove("hidden");
   }
