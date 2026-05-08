@@ -233,36 +233,58 @@ function closeGallery() {
 
 // ─── DXF viewer ───────────────────────────────────────────────────────────────
 
+function _entityPoints(e) {
+  if (e.type === "LINE") {
+    return [[e.vertices[0].x, e.vertices[0].y], [e.vertices[1].x, e.vertices[1].y]];
+  } else if (e.type === "LWPOLYLINE" || e.type === "POLYLINE") {
+    return (e.vertices || []).map(v => [v.x, v.y]);
+  } else if (e.type === "CIRCLE" || e.type === "ARC") {
+    const r = e.r || e.radius || 0;
+    return [[e.center.x - r, e.center.y - r], [e.center.x + r, e.center.y + r]];
+  }
+  return [];
+}
+
+function _pointsBbox(pts) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of pts) {
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 function _renderDxfCanvas(entities, canvas) {
   const ctx = canvas.getContext("2d");
   const W = canvas.width, H = canvas.height;
   ctx.fillStyle = "#18181b";
   ctx.fillRect(0, 0, W, H);
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  const ext = (x, y) => {
-    minX = Math.min(minX, x); minY = Math.min(minY, y);
-    maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
-  };
+  const list = entities || [];
+  const allPts = list.flatMap(_entityPoints);
 
-  (entities || []).forEach(e => {
-    if (e.type === "LINE") {
-      ext(e.vertices[0].x, e.vertices[0].y);
-      ext(e.vertices[1].x, e.vertices[1].y);
-    } else if (e.type === "LWPOLYLINE" || e.type === "POLYLINE") {
-      (e.vertices || []).forEach(v => ext(v.x, v.y));
-    } else if (e.type === "CIRCLE" || e.type === "ARC") {
-      const r = e.r || e.radius || 0;
-      ext(e.center.x - r, e.center.y - r);
-      ext(e.center.x + r, e.center.y + r);
-    }
-  });
-
-  if (!isFinite(minX)) {
+  if (!allPts.length) {
     ctx.fillStyle = "#6b7280"; ctx.font = "14px sans-serif"; ctx.textAlign = "center";
     ctx.fillText("No drawable entities found", W / 2, H / 2);
     return;
   }
+
+  // Full bounding box of everything
+  const full = _pointsBbox(allPts);
+  const fullArea = (full.maxX - full.minX || 1) * (full.maxY - full.minY || 1);
+
+  // Exclude entities whose own bbox covers >85% of the full area — these are
+  // paper border / title block frames that would push the real drawing off-screen.
+  const content = list.filter(e => {
+    const pts = _entityPoints(e);
+    if (!pts.length) return true;
+    const bb = _pointsBbox(pts);
+    const area = (bb.maxX - bb.minX) * (bb.maxY - bb.minY);
+    return area / fullArea < 0.85;
+  });
+
+  const viewPts = content.flatMap(_entityPoints);
+  const { minX, minY, maxX, maxY } = viewPts.length ? _pointsBbox(viewPts) : full;
 
   const pad = 40;
   const sc = Math.min((W - 2 * pad) / (maxX - minX || 1), (H - 2 * pad) / (maxY - minY || 1));
@@ -273,7 +295,8 @@ function _renderDxfCanvas(entities, canvas) {
 
   ctx.strokeStyle = "#93c5fd"; ctx.lineWidth = 1; ctx.lineCap = "round"; ctx.lineJoin = "round";
 
-  (entities || []).forEach(e => {
+  // Render content entities only (border frame omitted)
+  content.forEach(e => {
     ctx.beginPath();
     if (e.type === "LINE") {
       ctx.moveTo(tx(e.vertices[0].x), ty(e.vertices[0].y));
