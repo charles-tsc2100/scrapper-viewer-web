@@ -1,20 +1,31 @@
-/* app.js — shared Supabase client and utilities */
-
-// SUPABASE_URL and SUPABASE_ANON_KEY are injected by index.html / product.html
-// via a <script> block that sets window.ENV before this file loads.
+/* app.js — shared Supabase client, auth guard, list + detail logic */
 
 const { createClient } = supabase;
 const db = createClient(window.ENV.SUPABASE_URL, window.ENV.SUPABASE_ANON_KEY);
 
+async function requireAuth() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) location.replace("login.html");
+  return session;
+}
+
+async function signOut() {
+  await db.auth.signOut();
+  location.replace("login.html");
+}
+
+
 // ─── List page ────────────────────────────────────────────────────────────────
 
 async function initList() {
-  const searchInput  = document.getElementById("search");
-  const brandFilter  = document.getElementById("brand-filter");
-  const productList  = document.getElementById("product-list");
-  const countEl      = document.getElementById("result-count");
+  await requireAuth();
 
-  // Populate brand dropdown dynamically
+  const searchInput = document.getElementById("search");
+  const brandFilter = document.getElementById("brand-filter");
+  const productList = document.getElementById("product-list");
+  const countEl     = document.getElementById("result-count");
+
+  // Populate brand dropdown
   const { data: brands } = await db.from("products").select("brand").order("brand");
   const unique = [...new Set((brands || []).map(r => r.brand).filter(Boolean))];
   unique.forEach(b => {
@@ -38,18 +49,44 @@ async function initList() {
 
     productList.innerHTML = "<p class='text-gray-400 py-8 text-center'>Loading…</p>";
 
-    let query = db.from("products").select("id,brand,model,name,category,material,image_urls").order("brand").order("model").limit(200);
+    let query = db
+      .from("products")
+      .select("id,brand,model,name,category,subcategory,material,finish,image_urls")
+      .order("brand")
+      .order("model")
+      .limit(200);
 
     if (brand) query = query.eq("brand", brand);
-    if (q)     query = query.textSearch("search_tsv", q, { type: "websearch" });
+
+    if (q) {
+      // Full-text search on indexed tsvector first; also OR-match material/finish/raw
+      query = query.or(
+        `search_tsv.fts.${q},material.ilike.%${q}%,finish.ilike.%${q}%,raw.fts.${q}`
+      );
+    }
 
     const { data, error } = await query;
 
     if (error) {
+      // Fallback: if fts on raw fails, retry with just tsvector + ilike columns
+      if (q) {
+        let fallback = db
+          .from("products")
+          .select("id,brand,model,name,category,subcategory,material,finish,image_urls")
+          .order("brand").order("model").limit(200);
+        if (brand) fallback = fallback.eq("brand", brand);
+        fallback = fallback.or(`material.ilike.%${q}%,finish.ilike.%${q}%,model.ilike.%${q}%,name.ilike.%${q}%,category.ilike.%${q}%`);
+        const { data: fbData, error: fbErr } = await fallback;
+        if (!fbErr && fbData) return render(fbData);
+      }
       productList.innerHTML = `<p class='text-red-400 py-8 text-center'>Error: ${error.message}</p>`;
       return;
     }
 
+    render(data);
+  }
+
+  function render(data) {
     countEl.textContent = `${data.length} product${data.length !== 1 ? "s" : ""}`;
 
     if (!data.length) {
@@ -60,6 +97,7 @@ async function initList() {
     productList.innerHTML = data.map(p => {
       const thumb = (p.image_urls || [])[0] || "";
       const cat   = p.category ? p.category.split(">").pop().trim() : "";
+      const sub   = p.finish || p.material || "";
       return `
         <a href="product.html?id=${encodeURIComponent(p.id)}"
            class="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
@@ -73,7 +111,7 @@ async function initList() {
             </div>
             <p class="font-semibold text-gray-800 mt-1 truncate">${p.model}</p>
             ${p.name && p.name !== p.model ? `<p class="text-sm text-gray-500 truncate">${p.name}</p>` : ""}
-            ${p.material ? `<p class="text-xs text-gray-400 mt-0.5">${p.material}</p>` : ""}
+            ${sub ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${sub}</p>` : ""}
           </div>
           <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -89,6 +127,8 @@ async function initList() {
 // ─── Detail page ──────────────────────────────────────────────────────────────
 
 async function initDetail() {
+  await requireAuth();
+
   const id = new URLSearchParams(location.search).get("id");
   if (!id) { location.href = "index.html"; return; }
 
@@ -100,12 +140,12 @@ async function initDetail() {
     return;
   }
 
-  document.title = `${data.model} — ELMES Product Viewer`;
+  document.title = `${data.model} — Product Catalogue`;
   document.getElementById("breadcrumb-model").textContent = data.model;
 
   // Images
   const images = data.image_urls || [];
-  const mainImg = document.getElementById("main-image");
+  const mainImg  = document.getElementById("main-image");
   const thumbGrid = document.getElementById("thumb-grid");
 
   if (images.length) {
@@ -120,11 +160,12 @@ async function initDetail() {
 
   // Core spec table
   const specRows = [
-    ["Brand",     data.brand],
-    ["Model",     data.model],
-    ["Category",  data.category],
-    ["Material",  data.material],
-    ["Finish",    data.finish],
+    ["Brand",          data.brand],
+    ["Model",          data.model],
+    ["Category",       data.category],
+    ["Subcategory",    data.subcategory],
+    ["Material",       data.material],
+    ["Finish",         data.finish],
     ["Load Capacity",    data.load_capacity_kg  != null ? `${data.load_capacity_kg} kg`  : null],
     ["Max Door Height",  data.door_height_mm    != null ? `${data.door_height_mm} mm`    : null],
     ["Max Door Width",   data.door_width_mm     != null ? `${data.door_width_mm} mm`     : null],
@@ -163,7 +204,7 @@ async function initDetail() {
   // Drawing links
   const drawings = data.drawing_urls || [];
   if (drawings.length) {
-    document.getElementById("drawing-links").innerHTML = drawings.map((url, i) => {
+    document.getElementById("drawing-links").innerHTML = drawings.map(url => {
       const name = url.split("/").pop();
       return `<a href="${url}" target="_blank" download
                  class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
