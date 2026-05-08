@@ -23,7 +23,7 @@
   object-fit: contain;
 }
 
-/* Product card thumbnail */
+/* Product card thumbnail — list view */
 .product-thumb {
   width: 64px;
   height: 64px;
@@ -31,6 +31,77 @@
   border-radius: 0.25rem;
   flex-shrink: 0;
 }
+
+/* ── Grid layout ── */
+#product-list.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+}
+#product-list.layout-grid a {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0;
+  overflow: hidden;
+}
+#product-list.layout-grid .grid-img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+#product-list.layout-grid .grid-no-img {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d1d5db;
+  font-size: 0.75rem;
+}
+#product-list.layout-grid .card-body {
+  padding: 0.625rem 0.75rem 0.75rem;
+  width: 100%;
+}
+
+/* ── Compact layout ── */
+#product-list.layout-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: white;
+}
+#product-list.layout-compact a {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 0.75rem;
+}
+#product-list.layout-compact a:last-child { border-bottom: none; }
+#product-list.layout-compact a:hover { background: #f9fafb; box-shadow: none; }
+#product-list.layout-compact .compact-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+#product-list.layout-compact .compact-no-img {
+  width: 36px;
+  height: 36px;
+  background: #f3f4f6;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+/* Layout toggle buttons */
+.layout-btn { color: #9ca3af; transition: color 0.15s, background 0.15s; }
+.layout-btn:hover { color: #374151; background: white; }
+.layout-btn.active { color: #1d4ed8; background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
 
 /* Spec table */
 .spec-table td:first-child {

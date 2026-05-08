@@ -33,7 +33,20 @@
   </header>
 
   <main class="max-w-4xl mx-auto px-4 py-6">
-    <p id="result-count" class="text-sm text-gray-400 mb-4"></p>
+    <div class="flex items-center justify-between mb-4">
+      <p id="result-count" class="text-sm text-gray-400"></p>
+      <div class="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <button id="btn-list"    onclick="setLayout('list')"    title="List"    class="layout-btn active p-1.5 rounded-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <button id="btn-grid"    onclick="setLayout('grid')"    title="Grid"    class="layout-btn p-1.5 rounded-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+        </button>
+        <button id="btn-compact" onclick="setLayout('compact')" title="Compact" class="layout-btn p-1.5 rounded-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </div>
     <div id="product-list" class="flex flex-col gap-3">
       <p class="text-gray-400 py-8 text-center">Loading…</p>
     </div>

@@ -17,6 +17,101 @@ async function signOut() {
 
 // ─── List page ────────────────────────────────────────────────────────────────
 
+function renderProducts(data) {
+  const productList = document.getElementById("product-list");
+  const countEl     = document.getElementById("result-count");
+
+  countEl.textContent = `${data.length} product${data.length !== 1 ? "s" : ""}`;
+
+  if (!data.length) {
+    productList.innerHTML = "<p class='text-gray-400 py-8 text-center col-span-full'>No products found.</p>";
+    return;
+  }
+
+  if (currentLayout === "grid") {
+    productList.innerHTML = data.map(p => {
+      const thumb = (p.image_urls || [])[0] || "";
+      const cat   = p.category ? p.category.split(">").pop().trim() : "";
+      return `
+        <a href="product.html?id=${encodeURIComponent(p.id)}"
+           class="flex bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+          ${thumb
+            ? `<img src="${thumb}" alt="${p.model}" class="grid-img">`
+            : `<div class="grid-no-img">No img</div>`}
+          <div class="card-body">
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">${p.brand || ""}</span>
+            ${cat ? `<p class="text-xs text-gray-400 mt-1">${cat}</p>` : ""}
+            <p class="font-semibold text-gray-800 text-sm mt-1 leading-tight">${p.model}</p>
+            ${p.finish || p.material ? `<p class="text-xs text-gray-400 mt-1 truncate">${p.finish || p.material}</p>` : ""}
+          </div>
+        </a>`;
+    }).join("");
+    return;
+  }
+
+  if (currentLayout === "compact") {
+    productList.innerHTML = data.map(p => {
+      const thumb = (p.image_urls || [])[0] || "";
+      const cat   = p.category ? p.category.split(">").pop().trim() : "";
+      return `
+        <a href="product.html?id=${encodeURIComponent(p.id)}"
+           class="flex items-center gap-3 hover:bg-gray-50 transition-colors">
+          ${thumb
+            ? `<img src="${thumb}" alt="${p.model}" class="compact-thumb">`
+            : `<div class="compact-no-img"></div>`}
+          <span class="text-xs font-semibold text-blue-700 w-16 flex-shrink-0">${p.brand || ""}</span>
+          <span class="font-medium text-gray-800 text-sm w-36 flex-shrink-0 truncate">${p.model}</span>
+          <span class="text-xs text-gray-400 flex-1 truncate hidden sm:block">${p.finish || p.material || cat || ""}</span>
+          <svg class="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>`;
+    }).join("");
+    return;
+  }
+
+  // Default: list
+  productList.innerHTML = data.map(p => {
+    const thumb = (p.image_urls || [])[0] || "";
+    const cat   = p.category ? p.category.split(">").pop().trim() : "";
+    const sub   = p.finish || p.material || "";
+    return `
+      <a href="product.html?id=${encodeURIComponent(p.id)}"
+         class="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+        ${thumb
+          ? `<img src="${thumb}" alt="${p.model}" class="product-thumb">`
+          : `<div class="product-thumb bg-gray-100 flex items-center justify-center text-gray-300 text-xs rounded">No img</div>`}
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">${p.brand || ""}</span>
+            ${cat ? `<span class="text-xs text-gray-400">${cat}</span>` : ""}
+          </div>
+          <p class="font-semibold text-gray-800 mt-1 truncate">${p.model}</p>
+          ${p.name && p.name !== p.model ? `<p class="text-sm text-gray-500 truncate">${p.name}</p>` : ""}
+          ${sub ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${sub}</p>` : ""}
+        </div>
+        <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </a>`;
+  }).join("");
+}
+
+let currentLayout = localStorage.getItem("layout") || "list";
+
+function setLayout(layout) {
+  currentLayout = layout;
+  localStorage.setItem("layout", layout);
+  const list = document.getElementById("product-list");
+  list.className = "flex flex-col gap-3";
+  if (layout === "grid")    list.classList.add("layout-grid");
+  if (layout === "compact") list.classList.add("layout-compact");
+  ["list","grid","compact"].forEach(l => {
+    document.getElementById("btn-" + l)?.classList.toggle("active", l === layout);
+  });
+  if (window._lastData) renderProducts(window._lastData);
+}
+
 async function initList() {
   await requireAuth();
 
@@ -24,6 +119,9 @@ async function initList() {
   const brandFilter = document.getElementById("brand-filter");
   const productList = document.getElementById("product-list");
   const countEl     = document.getElementById("result-count");
+
+  // Apply saved layout on load
+  setLayout(currentLayout);
 
   // Populate brand dropdown
   const { data: brands } = await db.from("products").select("brand").order("brand");
@@ -68,7 +166,6 @@ async function initList() {
     const { data, error } = await query;
 
     if (error) {
-      // Fallback: if fts on raw fails, retry with just tsvector + ilike columns
       if (q) {
         let fallback = db
           .from("products")
@@ -77,47 +174,14 @@ async function initList() {
         if (brand) fallback = fallback.eq("brand", brand);
         fallback = fallback.or(`material.ilike.%${q}%,finish.ilike.%${q}%,model.ilike.%${q}%,name.ilike.%${q}%,category.ilike.%${q}%`);
         const { data: fbData, error: fbErr } = await fallback;
-        if (!fbErr && fbData) return render(fbData);
+        if (!fbErr && fbData) { window._lastData = fbData; return renderProducts(fbData); }
       }
-      productList.innerHTML = `<p class='text-red-400 py-8 text-center'>Error: ${error.message}</p>`;
+      productList.innerHTML = `<p class='text-red-400 py-8 text-center col-span-full'>Error: ${error.message}</p>`;
       return;
     }
 
-    render(data);
-  }
-
-  function render(data) {
-    countEl.textContent = `${data.length} product${data.length !== 1 ? "s" : ""}`;
-
-    if (!data.length) {
-      productList.innerHTML = "<p class='text-gray-400 py-8 text-center'>No products found.</p>";
-      return;
-    }
-
-    productList.innerHTML = data.map(p => {
-      const thumb = (p.image_urls || [])[0] || "";
-      const cat   = p.category ? p.category.split(">").pop().trim() : "";
-      const sub   = p.finish || p.material || "";
-      return `
-        <a href="product.html?id=${encodeURIComponent(p.id)}"
-           class="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-          ${thumb
-            ? `<img src="${thumb}" alt="${p.model}" class="product-thumb">`
-            : `<div class="product-thumb bg-gray-100 flex items-center justify-center text-gray-300 text-xs rounded">No img</div>`}
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">${p.brand || ""}</span>
-              ${cat ? `<span class="text-xs text-gray-400">${cat}</span>` : ""}
-            </div>
-            <p class="font-semibold text-gray-800 mt-1 truncate">${p.model}</p>
-            ${p.name && p.name !== p.model ? `<p class="text-sm text-gray-500 truncate">${p.name}</p>` : ""}
-            ${sub ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${sub}</p>` : ""}
-          </div>
-          <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
-        </a>`;
-    }).join("");
+    window._lastData = data;
+    renderProducts(data);
   }
 
   fetchProducts();
