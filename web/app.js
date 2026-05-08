@@ -127,79 +127,129 @@ function setLayout(layout) {
   if (window._lastData) renderProducts(window._lastData);
 }
 
+// ─── Filter state ─────────────────────────────────────────────────────────────
+
+const _activeFilters = { brand: "", category: "", subcategory: "" };
+const _filterLabels  = { brand: "Brand", category: "Product type", subcategory: "Scope of application" };
+
+function toggleFilter(key) {
+  const panel = document.getElementById("fpanel-" + key);
+  const isHidden = panel.classList.contains("hidden");
+  // Close all panels first
+  ["brand","category","subcategory"].forEach(k => {
+    document.getElementById("fpanel-" + k).classList.add("hidden");
+  });
+  if (isHidden) panel.classList.remove("hidden");
+}
+
+function _selectFilter(key, value) {
+  _activeFilters[key] = value;
+  const label = document.getElementById("flabel-" + key);
+  const btn   = label.closest("button");
+  label.textContent = value || _filterLabels[key];
+  btn.classList.toggle("active", !!value);
+  document.getElementById("fpanel-" + key).classList.add("hidden");
+  // Update option highlight
+  document.querySelectorAll(`#fpanel-${key} .filter-option`).forEach(el => {
+    el.classList.toggle("selected", el.dataset.value === value);
+  });
+  // Show/hide clear button
+  const anyActive = Object.values(_activeFilters).some(Boolean);
+  document.getElementById("clear-filters").classList.toggle("hidden", !anyActive);
+  fetchProducts();
+}
+
+function clearFilters() {
+  ["brand","category","subcategory"].forEach(k => _selectFilter(k, ""));
+}
+
+function _buildPanel(key, values) {
+  const panel = document.getElementById("fpanel-" + key);
+  panel.innerHTML = `<button class="filter-option" data-value="" onclick="_selectFilter('${key}','')">All</button>` +
+    values.map(v => `<button class="filter-option" data-value="${v}" onclick="_selectFilter('${key}','${v.replace(/'/g,"\\'")}')"> ${v}</button>`).join("");
+}
+
+// Close panels when clicking outside
+document.addEventListener("click", e => {
+  if (!e.target.closest(".filter-dropdown")) {
+    ["brand","category","subcategory"].forEach(k => {
+      document.getElementById("fpanel-" + k)?.classList.add("hidden");
+    });
+  }
+});
+
+
 async function initList() {
   await requireAuth();
 
   const searchInput = document.getElementById("search");
-  const brandFilter = document.getElementById("brand-filter");
   const productList = document.getElementById("product-list");
-  const countEl     = document.getElementById("result-count");
 
-  // Apply saved layout on load
   setLayout(currentLayout);
 
-  // Populate brand dropdown
-  const { data: brands } = await db.from("products").select("brand").order("brand");
-  const unique = [...new Set((brands || []).map(r => r.brand).filter(Boolean))];
-  unique.forEach(b => {
-    const opt = document.createElement("option");
-    opt.value = b; opt.textContent = b;
-    brandFilter.appendChild(opt);
-  });
+  // Load filter options from DB
+  const { data: allRows } = await db.from("products")
+    .select("brand,category,subcategory").order("brand");
+
+  if (allRows) {
+    const uniq = col => [...new Set(allRows.map(r => r[col]).filter(Boolean))].sort();
+    _buildPanel("brand",       uniq("brand"));
+    _buildPanel("category",    uniq("category"));
+    _buildPanel("subcategory", uniq("subcategory"));
+  }
 
   let debounce;
-  function onFilter() {
+  searchInput.addEventListener("input", () => {
     clearTimeout(debounce);
     debounce = setTimeout(fetchProducts, 250);
-  }
-
-  searchInput.addEventListener("input", onFilter);
-  brandFilter.addEventListener("change", onFilter);
-
-  async function fetchProducts() {
-    const q     = searchInput.value.trim();
-    const brand = brandFilter.value;
-
-    productList.innerHTML = "<p class='text-gray-400 py-8 text-center'>Loading…</p>";
-
-    let query = db
-      .from("products")
-      .select("id,brand,model,name,category,subcategory,material,finish,image_urls")
-      .order("brand")
-      .order("model")
-      .limit(200);
-
-    if (brand) query = query.eq("brand", brand);
-
-    if (q) {
-      // Full-text search on indexed tsvector first; also OR-match material/finish/raw
-      query = query.or(
-        `search_tsv.fts.${q},material.ilike.%${q}%,finish.ilike.%${q}%,raw.fts.${q}`
-      );
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      if (q) {
-        let fallback = db
-          .from("products")
-          .select("id,brand,model,name,category,subcategory,material,finish,image_urls")
-          .order("brand").order("model").limit(200);
-        if (brand) fallback = fallback.eq("brand", brand);
-        fallback = fallback.or(`material.ilike.%${q}%,finish.ilike.%${q}%,model.ilike.%${q}%,name.ilike.%${q}%,category.ilike.%${q}%`);
-        const { data: fbData, error: fbErr } = await fallback;
-        if (!fbErr && fbData) { window._lastData = fbData; return renderProducts(fbData); }
-      }
-      productList.innerHTML = `<p class='text-red-400 py-8 text-center col-span-full'>Error: ${error.message}</p>`;
-      return;
-    }
-
-    window._lastData = data;
-    renderProducts(data);
-  }
+  });
 
   fetchProducts();
+}
+
+async function fetchProducts() {
+  const productList = document.getElementById("product-list");
+  const q           = document.getElementById("search").value.trim();
+
+  productList.innerHTML = "<p class='text-gray-400 py-8 text-center'>Loading…</p>";
+
+  let query = db
+    .from("products")
+    .select("id,brand,model,name,category,subcategory,material,finish,image_urls")
+    .order("brand").order("model")
+    .limit(200);
+
+  if (_activeFilters.brand)       query = query.eq("brand", _activeFilters.brand);
+  if (_activeFilters.category)    query = query.eq("category", _activeFilters.category);
+  if (_activeFilters.subcategory) query = query.eq("subcategory", _activeFilters.subcategory);
+
+  if (q) {
+    query = query.or(
+      `search_tsv.fts.${q},material.ilike.%${q}%,finish.ilike.%${q}%,raw.fts.${q}`
+    );
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    if (q) {
+      let fallback = db
+        .from("products")
+        .select("id,brand,model,name,category,subcategory,material,finish,image_urls")
+        .order("brand").order("model").limit(200);
+      if (_activeFilters.brand)       fallback = fallback.eq("brand", _activeFilters.brand);
+      if (_activeFilters.category)    fallback = fallback.eq("category", _activeFilters.category);
+      if (_activeFilters.subcategory) fallback = fallback.eq("subcategory", _activeFilters.subcategory);
+      fallback = fallback.or(`material.ilike.%${q}%,finish.ilike.%${q}%,model.ilike.%${q}%,name.ilike.%${q}%,category.ilike.%${q}%`);
+      const { data: fbData, error: fbErr } = await fallback;
+      if (!fbErr && fbData) { window._lastData = fbData; return renderProducts(fbData); }
+    }
+    productList.innerHTML = `<p class='text-red-400 py-8 text-center col-span-full'>Error: ${error.message}</p>`;
+    return;
+  }
+
+  window._lastData = data;
+  renderProducts(data);
 }
 
 
