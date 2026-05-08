@@ -86,6 +86,8 @@ def _download(url: str, dest: Path, dry_run: bool) -> bool:
         return True
     try:
         r = SESSION.get(url, timeout=30, stream=True)
+        if r.status_code == 404:
+            return False  # silently skip missing drawing images
         r.raise_for_status()
         dest.parent.mkdir(parents=True, exist_ok=True)
         with open(dest, "wb") as f:
@@ -171,50 +173,87 @@ def parse_detail(slug: str, dry_run: bool) -> list[dict]:
             elif name_lower.endswith(".pdf"):
                 other_docs_urls.append(href)
 
-    # ── Download hero image ────────────────────────────────────────────────
-    hero_rel = ""
+    # ── Build drawing JPG URLs from CAD DXF filenames ─────────────────────
+    # Drawing images live at Ansichtszeichnungen/{BRAND}/{stem}.jpg
+    # Not every DXF has a matching JPG — we probe and skip 404s.
+    DRAWING_BASE = f"{PIM_BASE}/storage/fileadmin/user_upload/Ansichtszeichnungen"
+    drawing_jpg_urls = []
+    for cad_url in cad_urls:
+        stem = Path(_safe_filename(cad_url)).stem  # e.g. TE_340_3D_V01
+        jpg_url = f"{DRAWING_BASE}/{brand}/{stem}.jpg"
+        drawing_jpg_urls.append(jpg_url)
+
+    # ── Collect all files to download ─────────────────────────────────────
+    def _dest_for(u: str, subdir: str) -> Path:
+        return OUT_DIR / subdir / _safe_filename(u)
+
+    file_jobs = {}  # url -> dest Path
     if hero_img_url:
-        fname     = _safe_filename(hero_img_url)
-        hero_dest = OUT_DIR / "images" / "hero" / fname
-        if _download(hero_img_url, hero_dest, dry_run):
-            hero_rel = "simonswerk\\" + str(hero_dest.relative_to(OUT_DIR)).replace("/", "\\")
-
-    # ── Download PDFs ──────────────────────────────────────────────────────
-    def _dl_doc(u: str) -> str:
-        if not u:
-            return ""
-        fname = _safe_filename(u)
-        dest  = OUT_DIR / "docs" / fname
-        if _download(u, dest, dry_run):
-            return "simonswerk\\" + str(dest.relative_to(OUT_DIR)).replace("/", "\\")
-        return ""
-
-    install_rel  = _dl_doc(install_pdf_url)
-    adjust_rel   = _dl_doc(adjust_pdf_url)
-    load_rel     = _dl_doc(load_pdf_url)
-    other_rels   = [r for r in (_dl_doc(u) for u in other_docs_urls) if r]
-
-    # ── Download CAD ──────────────────────────────────────────────────────
-    cad_rels = []
+        file_jobs[hero_img_url] = _dest_for(hero_img_url, "images/hero")
+    for u in [install_pdf_url, adjust_pdf_url, load_pdf_url] + other_docs_urls:
+        if u: file_jobs[u] = _dest_for(u, "docs")
     for u in cad_urls:
-        fname = _safe_filename(u)
-        dest  = OUT_DIR / "cad" / fname
-        if _download(u, dest, dry_run):
-            cad_rels.append("simonswerk\\" + str(dest.relative_to(OUT_DIR)).replace("/", "\\"))
-
-    routing_rels = []
+        file_jobs[u] = _dest_for(u, "cad")
     for u in routing_urls:
-        fname = _safe_filename(u)
-        dest  = OUT_DIR / "routing" / fname
-        if _download(u, dest, dry_run):
-            routing_rels.append("simonswerk\\" + str(dest.relative_to(OUT_DIR)).replace("/", "\\"))
+        file_jobs[u] = _dest_for(u, "routing")
+    for u in drawing_jpg_urls:
+        file_jobs[u] = _dest_for(u, "images/drawings")
 
-    cad_str     = "; ".join(cad_rels)
-    routing_str = "; ".join(routing_rels)
+    # ── Download all files in parallel ────────────────────────────────────
+    if not dry_run:
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futs = {pool.submit(_download, u, d, False): u for u, d in file_jobs.items()}
+            for f in as_completed(futs):
+                pass  # errors already printed inside _download
+    else:
+        for u, d in file_jobs.items():
+            _download(u, d, dry_run=True)
 
-    # ── Finish variants (Item versions tab) ───────────────────────────────
+    def _rel_or_empty(u: str, subdir: str) -> str:
+        if not u: return ""
+        d = _dest_for(u, subdir)
+        return "simonswerk\\" + str(d.relative_to(OUT_DIR)).replace("/", "\\") if d.exists() or dry_run else ""
+
+    hero_rel     = _rel_or_empty(hero_img_url, "images/hero")
+    install_rel  = _rel_or_empty(install_pdf_url, "docs")
+    adjust_rel   = _rel_or_empty(adjust_pdf_url, "docs")
+    load_rel     = _rel_or_empty(load_pdf_url, "docs")
+    other_rels   = [_rel_or_empty(u, "docs") for u in other_docs_urls if u]
+    cad_rels     = [_rel_or_empty(u, "cad") for u in cad_urls]
+    routing_rels = [_rel_or_empty(u, "routing") for u in routing_urls]
+    drawing_rels = [_rel_or_empty(u, "images/drawings") for u in drawing_jpg_urls]
+
+    cad_str     = "; ".join(r for r in cad_rels if r)
+    routing_str = "; ".join(r for r in routing_rels if r)
+    drawings_str = "; ".join(r for r in drawing_rels if r)
+
+    # ── Pre-download all finish images in parallel ────────────────────────
     item_tab = soup.find("div", id="item")
     surfaces = item_tab.find_all("div", class_="product-surface") if item_tab else []
+
+    finish_img_jobs = {}  # (slug, safe_code) -> (url, dest)
+    for surface in surfaces:
+        thumb_img = surface.find("img")
+        if not thumb_img: continue
+        finish_raw = thumb_img.get("title", "")
+        m = re.match(r"^(.+?)\s*\(([^)]+)\)\s*$", finish_raw)
+        finish_code = m.group(2).strip() if m else ""
+        finish_img_url = thumb_img["src"]
+        if finish_img_url:
+            ext       = Path(_safe_filename(finish_img_url)).suffix or ".jpg"
+            safe_code = re.sub(r"[^a-zA-Z0-9_-]", "_", finish_code)
+            fname     = f"{slug}_{safe_code}{ext}"
+            dest      = OUT_DIR / "images" / "finish" / fname
+            finish_img_jobs[(slug, safe_code)] = (finish_img_url, dest)
+
+    if not dry_run:
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futs = {pool.submit(_download, u, d, False): k for k, (u, d) in finish_img_jobs.items()}
+            for f in as_completed(futs):
+                pass
+    else:
+        for k, (u, d) in finish_img_jobs.items():
+            _download(u, d, dry_run=True)
 
     records = []
     for surface in surfaces:
@@ -246,14 +285,13 @@ def parse_detail(slug: str, dry_run: bool) -> list[dict]:
         packing  = detail_map.get("Packing unit", "")
         item_no  = detail_map.get("Item No.", "")
 
-        # Download finish image → images/finish/{slug}_{finish_code}.jpg
+        # Look up already-downloaded finish image
         finish_rel = ""
-        if finish_img_url:
-            ext       = Path(_safe_filename(finish_img_url)).suffix or ".jpg"
-            safe_code = re.sub(r"[^a-zA-Z0-9_-]", "_", finish_code)
-            fname     = f"{slug}_{safe_code}{ext}"
-            dest      = OUT_DIR / "images" / "finish" / fname
-            if _download(finish_img_url, dest, dry_run):
+        safe_code_key = re.sub(r"[^a-zA-Z0-9_-]", "_", finish_code)
+        job = finish_img_jobs.get((slug, safe_code_key))
+        if job:
+            _, dest = job
+            if dest.exists() or dry_run:
                 finish_rel = "simonswerk\\" + str(dest.relative_to(OUT_DIR)).replace("/", "\\")
 
         record = {
@@ -287,6 +325,7 @@ def parse_detail(slug: str, dry_run: bool) -> list[dict]:
             "Other Docs":            "; ".join(other_rels),
             "CAD Drawings (DXF)":   cad_str,
             "Routing Data":          routing_str,
+            "Drawings":              drawings_str,
             "Product URL":           url,
         }
         records.append(record)
@@ -313,6 +352,7 @@ def parse_detail(slug: str, dry_run: bool) -> list[dict]:
             "Installation PDF": install_rel, "Adjustment PDF": adjust_rel,
             "Load Capacity PDF": load_rel, "Other Docs": "; ".join(other_rels),
             "CAD Drawings (DXF)": cad_str, "Routing Data": routing_str,
+            "Drawings": drawings_str,
             "Product URL": url,
         })
 

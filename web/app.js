@@ -320,7 +320,7 @@ async function initDetail() {
     "Material & Finish","Images","Drawings","Has 2D Drawing",
     "Series Model","Item Code","Item Image","Series Images","Spec Sheet PDF",
     "Slug","Hero Image","Finish Image","CAD Drawings","Installation PDF","Brand",
-    "Material","Finish","Height","Thickness","Load Capacity",
+    "Material","Finish","Height","Thickness","Load Capacity","Drawings",
   ]);
   const extra = Object.entries(data.raw || {}).filter(([k, v]) => !promoted.has(k) && v != null && v !== "");
   if (extra.length) {
