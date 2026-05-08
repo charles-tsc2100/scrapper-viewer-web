@@ -51,6 +51,20 @@ def split_paths(value: str | None) -> list[str]:
     return [p.strip() for p in value.split(";") if p.strip()]
 
 
+def filter_by_model(paths: list[str], model: str) -> list[str]:
+    """Keep only files whose filename contains the model identifier."""
+    if not model:
+        return paths
+    slug = re.sub(r"[^a-z0-9]", "", model.lower())
+    result = []
+    for p in paths:
+        fname = p.replace("\\", "/").split("/")[-1]
+        fname_slug = re.sub(r"[^a-z0-9]", "", fname.lower())
+        if slug in fname_slug:
+            result.append(p)
+    return result
+
+
 def resolve_urls(filenames: list[str], prefix: str, manifest: dict) -> list[str]:
     urls = []
     for f in filenames:
@@ -123,7 +137,7 @@ def normalise_sugatsune(record: dict, manifest: dict) -> dict:
 
     image_files   = split_paths(record.get("Item Image", ""))
     pdf_files     = split_paths(record.get("Spec Sheet PDF", ""))
-    drawing_files = split_paths(record.get("Drawings", ""))
+    drawing_files = filter_by_model(split_paths(record.get("Drawings", "")), model)
 
     image_urls = resolve_urls(image_files, "sugatsune/images/items", manifest)
     drawing_urls = resolve_urls(drawing_files, "sugatsune/drawings", manifest)

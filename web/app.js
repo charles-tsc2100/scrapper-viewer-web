@@ -305,9 +305,10 @@ async function viewDxf(url, name) {
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
   const ext = name.toLowerCase().split(".").pop();
+  const isImage = ["svg", "jpg", "jpeg", "png", "gif", "webp"].includes(ext);
 
-  if (ext === "svg") {
-    wrap.style.background = "#fff";
+  if (isImage) {
+    wrap.style.background = ext === "svg" ? "#fff" : "#18181b";
     wrap.innerHTML = `<img src="${url}" alt="${name}"
                           style="max-width:100%;max-height:480px;object-fit:contain;padding:16px;display:block;margin:auto;">`;
     return;
