@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Catalogue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Inject Supabase credentials (replaced by Cloudflare Pages env vars at deploy) -->
+  <script>
+    window.ENV = {
+      SUPABASE_URL:      "https://txxkearoajgchblunzrt.supabase.co",
+      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4eGtlYXJvYWpnY2hibHVuenJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxODUzMjksImV4cCI6MjA5Mzc2MTMyOX0.D2cp4lrBvCPLpr3ayboGeKR4gisukV-llod5v4bVPko"
+    };
+  </script>
+
+  <header class="bg-white border-b shadow-sm sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      <h1 class="text-lg font-bold text-gray-800 whitespace-nowrap">Product Catalogue</h1>
+      <div class="flex gap-2 flex-1 max-w-xl">
+        <input id="search" type="search" placeholder="Search model, brand, category…"
+               class="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+        <select id="brand-filter"
+                class="border rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+          <option value="">All brands</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6">
+    <p id="result-count" class="text-sm text-gray-400 mb-4"></p>
+    <div id="product-list" class="flex flex-col gap-3">
+      <p class="text-gray-400 py-8 text-center">Loading…</p>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="app.js"></script>
+  <script>initList();</script>
+</body>
+</html>

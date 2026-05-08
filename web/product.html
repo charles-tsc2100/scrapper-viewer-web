@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Detail</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Inject Supabase credentials -->
+  <script>
+    window.ENV = {
+      SUPABASE_URL:      "https://txxkearoajgchblunzrt.supabase.co",
+      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4eGtlYXJvYWpnY2hibHVuenJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxODUzMjksImV4cCI6MjA5Mzc2MTMyOX0.D2cp4lrBvCPLpr3ayboGeKR4gisukV-llod5v4bVPko"
+    };
+  </script>
+
+  <header class="bg-white border-b shadow-sm sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+      <a href="index.html" class="text-blue-600 hover:underline text-sm">← Catalogue</a>
+      <span class="text-gray-300">/</span>
+      <span id="breadcrumb-model" class="text-sm text-gray-600 truncate"></span>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6">
+
+    <div id="loading" class="text-gray-400 py-16 text-center">Loading…</div>
+
+    <div id="content" class="hidden space-y-8">
+
+      <!-- Image section -->
+      <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div class="flex items-center justify-center bg-gray-50 p-4 min-h-[200px]">
+          <img id="main-image" src="" alt="" class="max-w-full rounded-xl" style="max-height:420px;object-fit:contain;">
+        </div>
+        <div id="thumb-grid" class="thumb-grid p-4"></div>
+      </div>
+
+      <!-- Specs -->
+      <div class="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-gray-800">Specifications</h2>
+        <table class="spec-table w-full text-sm">
+          <tbody id="spec-table"></tbody>
+        </table>
+      </div>
+
+      <!-- Additional specs (from raw JSON) -->
+      <div id="extra-section" class="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-gray-800">Additional Specs</h2>
+        <table class="spec-table w-full text-sm">
+          <tbody id="extra-specs"></tbody>
+        </table>
+      </div>
+
+      <!-- Downloads -->
+      <div class="bg-white rounded-2xl shadow-sm p-6 space-y-3">
+        <h2 class="text-lg font-semibold text-gray-800">Downloads</h2>
+
+        <a id="pdf-link" href="#" target="_blank" download
+           class="hidden inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-50 text-red-700 text-sm hover:bg-red-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+          </svg>
+          Spec Sheet (PDF)
+        </a>
+
+        <div id="drawing-section" class="hidden space-y-2">
+          <p class="text-sm font-medium text-gray-600">Drawings</p>
+          <div id="drawing-links" class="flex flex-wrap gap-3"></div>
+        </div>
+
+        <p class="text-xs text-gray-400">
+          Source:
+          <a id="source-link" href="#" target="_blank" rel="noopener"
+             class="text-blue-500 hover:underline">View on manufacturer site</a>
+        </p>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="app.js"></script>
+  <script>initDetail();</script>
+</body>
+</html>
