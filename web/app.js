@@ -233,6 +233,19 @@ function closeGallery() {
 
 // (DXF canvas viewer removed — drawing JPGs now appear in the image gallery)
 
+function viewDrawing(url, name) {
+  const viewer = document.getElementById("drawing-viewer");
+  document.getElementById("drawing-viewer-name").textContent = name;
+  document.getElementById("drawing-viewer-wrap").innerHTML =
+    `<img src="${url}" alt="${name}" style="max-width:100%;max-height:480px;object-fit:contain;">`;
+  viewer.classList.remove("hidden");
+  viewer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function closeDrawingViewer() {
+  document.getElementById("drawing-viewer").classList.add("hidden");
+}
+
 
 // ─── Detail page ──────────────────────────────────────────────────────────────
 
@@ -347,18 +360,34 @@ async function initDetail() {
     }).join("");
   }
 
-  // CAD/DXF files — download only
+  // CAD/DXF files — view button for images, download for all
+  const _viewableExts = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]);
   if (cadFiles.length) {
     document.getElementById("drawing-links").innerHTML = cadFiles.map(url => {
       const name = decodeURIComponent(url.split("/").pop().split("?")[0]);
-      return `<a href="#" onclick="event.preventDefault(); downloadFile('${url}', '${name}')"
-                 class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 transition-colors">
-                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-                ${name}
-              </a>`;
+      const ext  = ("." + name.split(".").pop()).toLowerCase();
+      const canView = _viewableExts.has(ext);
+      const viewBtn = canView
+        ? `<button onclick="viewDrawing('${url}', '${name}')"
+                   class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
+             <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+             </svg>
+             View
+           </button>`
+        : "";
+      return `<div class="flex items-center gap-2">
+                ${viewBtn}
+                <a href="#" onclick="event.preventDefault(); downloadFile('${url}', '${name}')"
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 transition-colors">
+                  <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                  </svg>
+                  ${name}
+                </a>
+              </div>`;
     }).join("");
     document.getElementById("drawing-section").classList.remove("hidden");
   }

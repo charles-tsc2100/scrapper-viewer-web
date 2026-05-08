@@ -80,6 +80,15 @@
           <p class="text-sm font-semibold text-gray-600">Drawings</p>
           <div id="drawing-links" class="flex flex-col gap-2"></div>
 
+          <!-- Simple image viewer for SVG / image drawing files -->
+          <div id="drawing-viewer" class="hidden rounded-xl overflow-hidden border border-gray-200 mt-2">
+            <div class="flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200">
+              <span id="drawing-viewer-name" class="text-gray-700 text-xs font-mono truncate flex-1 mr-4"></span>
+              <button onclick="closeDrawingViewer()" class="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+            </div>
+            <div id="drawing-viewer-wrap" class="bg-white flex items-center justify-center p-4" style="min-height:200px;">
+            </div>
+          </div>
         </div>
 
         <p class="text-xs text-gray-400">
