@@ -110,13 +110,24 @@ def upload_image(local_path: Path, public_id: str, dry_run: bool) -> str:
     return result["secure_url"]
 
 
+def _sanitize_storage_key(key: str) -> str:
+    """Replace characters that Supabase Storage rejects (non-ASCII, spaces)."""
+    import unicodedata
+    # Normalize unicode then encode to ASCII, dropping non-ASCII chars
+    normalized = unicodedata.normalize("NFKD", key)
+    sanitized = normalized.encode("ascii", errors="ignore").decode("ascii")
+    # Replace spaces with underscores
+    return sanitized.replace(" ", "_")
+
+
 def upload_drawing(local_path: Path, storage_key: str, dry_run: bool) -> str:
+    safe_key = _sanitize_storage_key(storage_key)
     if dry_run:
-        return f"<SUPABASE_URL>/storage/v1/object/public/drawings/{storage_key}"
+        return f"<SUPABASE_URL>/storage/v1/object/public/drawings/{safe_key}"
     with open(local_path, "rb") as f:
         data = f.read()
-    _supabase.storage.from_("drawings").upload(storage_key, data, {"upsert": "true"})
-    return _supabase.storage.from_("drawings").get_public_url(storage_key)
+    _supabase.storage.from_("drawings").upload(safe_key, data, {"upsert": "true"})
+    return _supabase.storage.from_("drawings").get_public_url(safe_key)
 
 
 def main():
