@@ -233,6 +233,13 @@ function closeGallery() {
 
 // (DXF canvas viewer removed — drawing JPGs now appear in the image gallery)
 
+function toggleExtraSpecs() {
+  const body    = document.getElementById("extra-body");
+  const chevron = document.getElementById("extra-chevron");
+  const hidden  = body.classList.toggle("hidden");
+  chevron.classList.toggle("rotate-180", hidden);
+}
+
 function viewDrawing(url, name) {
   const viewer = document.getElementById("drawing-viewer");
   document.getElementById("drawing-viewer-name").textContent = name;
@@ -340,24 +347,40 @@ async function initDetail() {
     a.classList.remove("hidden");
   }
 
-  // drawing_urls now only contains non-image files (DXF, SVG, PDF)
+  // drawing_urls: DXF/CAD files + supplementary PDFs (certs, adj, load notes)
   const drawings    = data.drawing_urls || [];
-  const pdfDrawings = drawings.filter(u => u.toLowerCase().split("?")[0].endsWith(".pdf"));
+  const allPdfs     = drawings.filter(u => u.toLowerCase().split("?")[0].endsWith(".pdf"));
   const cadFiles    = drawings.filter(u => !u.toLowerCase().split("?")[0].endsWith(".pdf"));
 
-  // PDFs listed directly below the Spec Sheet button
-  if (pdfDrawings.length) {
-    document.getElementById("extra-pdf-links").innerHTML = pdfDrawings.map(url => {
-      const name = decodeURIComponent(url.split("/").pop().split("?")[0]);
-      return `<a href="#" onclick="event.preventDefault(); downloadFile('${url}', '${name}')"
-                 class="inline-flex items-center gap-2 text-sm text-red-700 hover:underline cursor-pointer">
-                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                </svg>
-                ${name}
-              </a>`;
-    }).join("");
+  // Split PDFs into certifications vs other docs by filename prefix
+  function _isCert(url) {
+    const n = decodeURIComponent(url.split("/").pop().split("?")[0]).toLowerCase();
+    return n.startsWith("zert_") || n.startsWith("leistungserklaerung_");
+  }
+  const certPdfs  = allPdfs.filter(u => _isCert(u));
+  const otherPdfs = allPdfs.filter(u => !_isCert(u));
+
+  function _pdfLink(url) {
+    const name = decodeURIComponent(url.split("/").pop().split("?")[0]);
+    return `<a href="#" onclick="event.preventDefault(); downloadFile('${url}', '${name}')"
+               class="inline-flex items-center gap-2 text-sm text-red-700 hover:underline cursor-pointer">
+              <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+              </svg>
+              ${name}
+            </a>`;
+  }
+
+  // Other PDFs listed below the Spec Sheet button
+  if (otherPdfs.length) {
+    document.getElementById("extra-pdf-links").innerHTML = otherPdfs.map(_pdfLink).join("");
+  }
+
+  // Certifications section
+  if (certPdfs.length) {
+    document.getElementById("cert-links").innerHTML = certPdfs.map(_pdfLink).join("");
+    document.getElementById("cert-section").classList.remove("hidden");
   }
 
   // CAD/DXF files — view button for images, download for all

@@ -201,6 +201,10 @@ def normalise_simonswerk(record: dict, manifest: dict) -> dict:
     drawing_files = split_paths(record.get("Drawings", ""))
     pdf_files     = split_paths(record.get("Installation PDF", ""))
 
+    other_doc_files   = split_paths(record.get("Other Docs", ""))
+    adj_pdf_files     = split_paths(record.get("Adjustment PDF", ""))
+    load_pdf_files    = split_paths(record.get("Load Capacity PDF", ""))
+
     cad_imgs, cad_only = split_drawing_files(cad_files)
     drawing_imgs, _    = split_drawing_files(drawing_files)
     image_urls   = (
@@ -209,7 +213,13 @@ def normalise_simonswerk(record: dict, manifest: dict) -> dict:
         resolve_urls(drawing_imgs,  "simonswerk/images/drawings",  manifest) +
         resolve_urls(cad_imgs,      "simonswerk/cad",              manifest)
     )
-    drawing_urls = resolve_urls(cad_only, "simonswerk/cad", manifest)
+    # drawing_urls: CAD files + all supplementary PDFs (adj, load, other docs)
+    drawing_urls = (
+        resolve_urls(cad_only,        "simonswerk/cad",  manifest) +
+        resolve_urls(adj_pdf_files,   "simonswerk/docs", manifest) +
+        resolve_urls(load_pdf_files,  "simonswerk/docs", manifest) +
+        resolve_urls(other_doc_files, "simonswerk/docs", manifest)
+    )
     spec_pdf_url = None
     if pdf_files:
         pdfs = resolve_urls(pdf_files, "simonswerk/docs", manifest)
