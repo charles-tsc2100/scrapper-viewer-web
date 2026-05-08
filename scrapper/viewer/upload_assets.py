@@ -19,8 +19,10 @@ import argparse
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import io
 import cloudinary
 import cloudinary.uploader
+from PIL import Image
 from supabase import create_client
 from dotenv import load_dotenv
 from tqdm import tqdm
@@ -73,11 +75,34 @@ def collect_files(source_dir: Path, source: str) -> list[tuple[Path, str, bool]]
     return results
 
 
+_MAX_BYTES = 9 * 1024 * 1024  # 9 MB — compress before hitting Cloudinary's 10 MB limit
+
+
+def _compress_image(local_path: Path) -> bytes | None:
+    """Return JPEG-compressed bytes if file exceeds _MAX_BYTES, else None."""
+    if local_path.stat().st_size <= _MAX_BYTES:
+        return None
+    with Image.open(local_path) as img:
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        for quality in (85, 70, 55, 40):
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=quality, optimize=True)
+            if buf.tell() <= _MAX_BYTES:
+                return buf.getvalue()
+        # Last resort: scale down
+        buf = io.BytesIO()
+        img.thumbnail((3000, 3000), Image.LANCZOS)
+        img.save(buf, format="JPEG", quality=40, optimize=True)
+        return buf.getvalue()
+
+
 def upload_image(local_path: Path, public_id: str, dry_run: bool) -> str:
     if dry_run:
         return f"https://res.cloudinary.com/<cloud>/image/upload/{public_id}"
+    compressed = _compress_image(local_path)
     result = cloudinary.uploader.upload(
-        str(local_path),
+        compressed if compressed is not None else str(local_path),
         public_id=public_id,
         overwrite=True,
         resource_type="auto",
