@@ -213,9 +213,22 @@ def _load_config_from_env():
     """
     required = ["LARK_APP_ID", "LARK_APP_SECRET", "LARK_BASE_APP_TOKEN",
                 "LARK_TABLE_ID", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
+    present = [k for k in required if os.environ.get(k)]
     missing = [k for k in required if not os.environ.get(k)]
-    if missing:
+
+    if not present:
+        # No env vars set at all — fall through to local config files.
         return None, None
+
+    if missing:
+        # Some env vars set but not all — almost certainly a CI secrets config issue.
+        log.error("Env-var mode detected (%d/%d required secrets set) but these are missing:",
+                  len(present), len(required))
+        for k in missing:
+            log.error("  MISSING: %s", k)
+        log.error("Check repo secrets at GitHub → Settings → Secrets and variables → Actions.")
+        log.error("Secret names are case-sensitive. All 6 required: %s", ", ".join(required))
+        sys.exit(2)
 
     lark_cfg = {
         "app_id":         os.environ["LARK_APP_ID"],
