@@ -2,10 +2,28 @@ r"""
 Version information and changelog for BOQ to Warehouse Form Converter.
 """
 
-APP_VERSION = "1.1.3"
+APP_VERSION = "1.2.0"
 APP_BUILD_DATE = "2026-05-22"
 
 CHANGELOG = [
+    {
+        "version": "1.2.0",
+        "date": "2026-05-22",
+        "changes": {
+            "en": [
+                "Added: Project picker — search and select from your live Lark project list before converting; name and category autofill automatically",
+                "Added: Project Category field — required before converting; used to track which project types use which brands and models",
+                "Added: Category write-back — if a project has no Project Type in Lark, filling it in the app syncs it back to Lark automatically",
+                "Added: Conversion deduplication — re-converting the same project marks the previous conversion as superseded, keeping analytics accurate",
+            ],
+            "th": [
+                "เพิ่ม: ตัวเลือกโครงการ — ค้นหาและเลือกโครงการจากรายการ Lark แบบเรียลไทม์ก่อนแปลง; ชื่อและประเภทจะกรอกอัตโนมัติ",
+                "เพิ่ม: ฟิลด์ประเภทโครงการ — จำเป็นก่อนแปลงไฟล์; ใช้ติดตามว่าโครงการประเภทใดใช้แบรนด์และรุ่นใดบ้าง",
+                "เพิ่ม: ซิงค์ประเภทโครงการกลับ — หากโครงการใน Lark ยังไม่มี Project Type การกรอกในแอปจะอัปเดตใน Lark โดยอัตโนมัติ",
+                "เพิ่ม: ป้องกันข้อมูลซ้ำ — การแปลงโครงการเดิมซ้ำจะทำเครื่องหมายการแปลงก่อนหน้าว่าถูกแทนที่ เพื่อให้ข้อมูลวิเคราะห์ถูกต้อง",
+            ],
+        },
+    },
     {
         "version": "1.1.3",
         "date": "2026-05-22",
