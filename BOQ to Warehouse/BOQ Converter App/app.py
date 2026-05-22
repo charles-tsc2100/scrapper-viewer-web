@@ -29,6 +29,12 @@ from version import APP_VERSION, APP_BUILD_DATE, CHANGELOG
 import theme as T
 import db_logger
 
+PROJECT_TYPES = [
+    "Commercial", "Data Center", "Education", "Government",
+    "Hospitality", "Industrial", "Leisure & Recreation",
+    "Residential", "Wellness",
+]
+
 import io
 
 _log_stream = io.StringIO()
@@ -526,14 +532,11 @@ class BOQConverterApp:
         tk.Frame(cat_container, width=2, bg=T.PRIMARY).pack(side=tk.LEFT, fill=tk.Y)
         cat_border = tk.Frame(cat_container, bg=T.GHOST_BORDER, padx=1, pady=1)
         cat_border.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        cat_entry = tk.Entry(
+        self._cat_combo = ttk.Combobox(
             cat_border, textvariable=self.project_category,
-            font=T.get_font("body"),
-            bg=T.SURFACE, fg=T.TEXT_PRIMARY,
-            insertbackground=T.PRIMARY,
-            borderwidth=0, relief="flat",
-            highlightthickness=0)
-        cat_entry.pack(fill=tk.X, ipady=5, padx=T.SPACE_2)
+            values=PROJECT_TYPES,
+            state="normal", font=T.get_font("body"))
+        self._cat_combo.pack(fill=tk.X, ipady=2, padx=T.SPACE_2)
 
         # Kick off background project fetch so the combobox populates after launch.
         self._reload_projects_async()
