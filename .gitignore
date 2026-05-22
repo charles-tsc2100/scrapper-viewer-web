@@ -20,19 +20,19 @@ boq_converter.log
 *.log
 optest.txt
 
-# Loose debug / one-off scripts at repo root
-debug*.py
-debug*.txt
-check_*.py
-check_*.txt
-check_out.txt
-verify_*.py
-verify_*.txt
-fix_*.py
-fix_*.txt
-show_*.py
-restore*.py
-restore*.txt
+# Loose debug / one-off scripts at repo root (not inside subdirectories like tools/)
+/debug*.py
+/debug*.txt
+/check_*.py
+/check_*.txt
+/check_out.txt
+/verify_*.py
+/verify_*.txt
+/fix_*.py
+/fix_*.txt
+/show_*.py
+/restore*.py
+/restore*.txt
 read_*.py
 update_*.py
 update_*.txt
