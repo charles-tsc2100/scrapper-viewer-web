@@ -2,10 +2,36 @@ r"""
 Version information and changelog for BOQ to Warehouse Form Converter.
 """
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.2"
 APP_BUILD_DATE = "2026-05-22"
 
 CHANGELOG = [
+    {
+        "version": "1.2.2",
+        "date": "2026-05-22",
+        "changes": {
+            "en": [
+                "Fixed: Project picker search now clears the placeholder when typing — no more characters inserted into '— Select a project —'",
+                "Fixed: Project Category and Project picker dropdowns now match the dark theme (was rendering white on Windows)",
+            ],
+            "th": [
+                "แก้ไข: การค้นหาในช่องเลือกโครงการตอนนี้ล้างข้อความ placeholder เมื่อพิมพ์ — ไม่มีอักษรแทรกเข้าใน '— เลือกโครงการ —' อีกต่อไป",
+                "แก้ไข: dropdown ประเภทโครงการและเลือกโครงการตอนนี้แสดงสีตรงกับธีมสีเข้ม (เคยแสดงเป็นสีขาวบน Windows)",
+            ],
+        },
+    },
+    {
+        "version": "1.2.1",
+        "date": "2026-05-22",
+        "changes": {
+            "en": [
+                "Fixed: Project Category field is now a dropdown with all 9 project types — no longer a plain text box",
+            ],
+            "th": [
+                "แก้ไข: ฟิลด์ประเภทโครงการตอนนี้เป็น dropdown พร้อม 9 ประเภทโครงการ — ไม่ใช่กล่องข้อความธรรมดาอีกต่อไป",
+            ],
+        },
+    },
     {
         "version": "1.2.0",
         "date": "2026-05-22",

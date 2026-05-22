@@ -219,6 +219,8 @@ def resolve_fonts():
 def configure_ttk_styles(style):
     """Configure ttk styles to match the Luxury Dark design system."""
 
+    # clam supports fieldbackground/custom colors; vista/winnative use native rendering
+    style.theme_use("clam")
     style.configure(".", background=SURFACE, font=get_font("body"))
 
     # Frames
@@ -364,3 +366,25 @@ def configure_ttk_styles(style):
               background=[("selected", SURFACE_LOW)],
               foreground=[("selected", TEXT_PRIMARY)],
               expand=[("selected", (0, 0, 0, 0))])
+
+    # Combobox
+    style.configure("TCombobox",
+                    fieldbackground=SURFACE_WHITE,
+                    background=SURFACE_LOW,
+                    foreground=TEXT_PRIMARY,
+                    selectbackground=PRIMARY_ACCENT,
+                    selectforeground=TEXT_ON_ACCENT,
+                    bordercolor=GHOST_BORDER,
+                    lightcolor=GHOST_BORDER,
+                    darkcolor=GHOST_BORDER,
+                    arrowcolor=TEXT_SECONDARY,
+                    insertcolor=TS_TEAL,
+                    borderwidth=1, relief="solid",
+                    font=get_font("body"))
+    style.map("TCombobox",
+              fieldbackground=[("readonly", SURFACE_LOW)],
+              foreground=[("disabled", TEXT_TERTIARY)],
+              bordercolor=[("focus", GHOST_BORDER_FOCUS)],
+              lightcolor=[("focus", GHOST_BORDER_FOCUS)],
+              darkcolor=[("focus", GHOST_BORDER_FOCUS)],
+              arrowcolor=[("active", TS_TEAL)])

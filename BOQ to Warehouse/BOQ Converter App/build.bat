@@ -29,7 +29,7 @@ if errorlevel 1 (
 echo [2/3] Building executable... (this may take 1-2 minutes)
 cd /d "%~dp0"
 pyinstaller --noconfirm --onefile --windowed --noupx ^
-    --name "BOQ Converter (v1.2.0)" ^
+    --name "BOQ Converter (v1.2.2)" ^
     --icon "logos\app_icon.ico" ^
     --version-file "version_info.txt" ^
     --add-data "boq_parser.py;." ^
@@ -59,7 +59,7 @@ echo [3/3] Done!
 echo.
 echo ============================================
 echo   SUCCESS! Your .exe is ready at:
-echo   %~dp0dist\BOQ Converter (v1.2.0).exe
+echo   %~dp0dist\BOQ Converter (v1.2.2).exe
 echo ============================================
 echo.
 echo You can move "BOQ Converter.exe" anywhere you like.

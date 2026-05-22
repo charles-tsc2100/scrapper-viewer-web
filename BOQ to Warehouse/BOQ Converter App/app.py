@@ -78,6 +78,13 @@ class BOQConverterApp:
         style = ttk.Style(self.root)
         T.configure_ttk_styles(style)
 
+        # Style the Combobox popdown listbox (classic Tk widget, not themed by ttk)
+        self.root.option_add("*TCombobox*Listbox.background",       T.SURFACE_LOW)
+        self.root.option_add("*TCombobox*Listbox.foreground",       T.TEXT_PRIMARY)
+        self.root.option_add("*TCombobox*Listbox.selectBackground", T.PRIMARY_ACCENT)
+        self.root.option_add("*TCombobox*Listbox.selectForeground", T.TEXT_ON_ACCENT)
+        self.root.option_add("*TCombobox*Listbox.font",             T.get_font("body"))
+
         icon_path = _find_logo("app_icon.ico")
         if icon_path:
             try:
@@ -510,12 +517,15 @@ class BOQConverterApp:
         self._project_picker_label.pack(anchor="w", pady=(0, 4))
 
         self._project_picker_var = tk.StringVar(value=t("project_picker_loading"))
+        self._picker_showing_placeholder = True
         self._project_picker = ttk.Combobox(
             picker_frame, textvariable=self._project_picker_var,
             state="normal", font=T.get_font("body"))
         self._project_picker.pack(fill=tk.X, ipady=2)
         self._project_picker.bind("<<ComboboxSelected>>", self._on_project_picked)
         self._project_picker.bind("<KeyRelease>", self._on_picker_search)
+        self._project_picker.bind("<FocusIn>",  self._on_picker_focus_in)
+        self._project_picker.bind("<FocusOut>", self._on_picker_focus_out)
 
         # ── Project category ──
         cat_frame = tk.Frame(card, bg=T.SURFACE_LOW)
@@ -827,17 +837,39 @@ class BOQConverterApp:
     def _apply_projects(self, projects):
         self._projects_cache = projects or []
         custom = t("project_picker_custom")
-        placeholder = (t("project_picker_placeholder")
-                       if self._projects_cache
-                       else t("project_picker_unavailable"))
-        values = [placeholder] + [p["name"] for p in self._projects_cache] + [custom]
+        self._picker_placeholder = (t("project_picker_placeholder")
+                                    if self._projects_cache
+                                    else t("project_picker_unavailable"))
+        values = [p["name"] for p in self._projects_cache] + [custom]
         self._project_picker["values"] = values
-        self._project_picker_var.set(placeholder)
+        self._project_picker_var.set(self._picker_placeholder)
+        self._picker_showing_placeholder = True
+        self._project_picker.configure(foreground=T.TEXT_TERTIARY)
+
+    def _on_picker_focus_in(self, _event=None):
+        if self._picker_showing_placeholder:
+            self._project_picker_var.set("")
+            self._picker_showing_placeholder = False
+            self._project_picker.configure(foreground=T.TEXT_PRIMARY)
+            # Show full list when field is cleared on focus
+            custom = t("project_picker_custom")
+            self._project_picker["values"] = (
+                [p["name"] for p in self._projects_cache] + [custom]
+            )
+
+    def _on_picker_focus_out(self, _event=None):
+        if not self._project_picker_var.get().strip():
+            placeholder = getattr(self, "_picker_placeholder",
+                                  t("project_picker_placeholder"))
+            self._project_picker_var.set(placeholder)
+            self._picker_showing_placeholder = True
+            self._project_picker.configure(foreground=T.TEXT_TERTIARY)
 
     def _on_picker_search(self, event=None):
         """Filter combobox list as the user types."""
-        # Ignore navigation keys that shouldn't trigger a filter
         if event and event.keysym in ("Return", "Tab", "Escape", "Down", "Up"):
+            return
+        if self._picker_showing_placeholder:
             return
         typed = self._project_picker_var.get().strip().lower()
         custom = t("project_picker_custom")
@@ -851,13 +883,8 @@ class BOQConverterApp:
     def _on_project_picked(self, _event=None):
         selected = self._project_picker_var.get()
         custom = t("project_picker_custom")
-        placeholder_options = {
-            t("project_picker_placeholder"),
-            t("project_picker_unavailable"),
-            t("project_picker_loading"),
-        }
-        if selected in placeholder_options:
-            return
+        self._picker_showing_placeholder = False
+        self._project_picker.configure(foreground=T.TEXT_PRIMARY)
         if selected == custom:
             self.project_id = None
             self._original_category = ""
@@ -887,9 +914,11 @@ class BOQConverterApp:
         self.project_id = None
         self._original_category = ""
         if hasattr(self, "_project_picker_var"):
-            self._project_picker_var.set(
-                t("project_picker_placeholder") if self._projects_cache
-                else t("project_picker_unavailable"))
+            placeholder = (t("project_picker_placeholder") if self._projects_cache
+                           else t("project_picker_unavailable"))
+            self._project_picker_var.set(placeholder)
+            self._picker_showing_placeholder = True
+            self._project_picker.configure(foreground=T.TEXT_TERTIARY)
         self.config = BOQConfig()
         self.config_detected = False
         self.config_status.config(text="", fg=T.TEXT_TERTIARY)
