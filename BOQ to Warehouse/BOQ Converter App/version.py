@@ -1,0 +1,245 @@
+r"""
+Version information and changelog for BOQ to Warehouse Form Converter.
+"""
+
+APP_VERSION = "1.1.3"
+APP_BUILD_DATE = "2026-05-22"
+
+CHANGELOG = [
+    {
+        "version": "1.1.3",
+        "date": "2026-05-22",
+        "changes": {
+            "en": [
+                "Added: total_quantity field in conversion log — each project's total hardware quantity is now recorded alongside item count and door type count",
+            ],
+            "th": [
+                "เพิ่ม: ฟิลด์ total_quantity ในบันทึกการแปลง — ปริมาณรวมของ hardware ทั้งหมดในโครงการถูกบันทึกพร้อมกับจำนวนรายการและประเภทประตู",
+            ],
+        },
+    },
+    {
+        "version": "1.1.2",
+        "date": "2026-05-22",
+        "changes": {
+            "en": [
+                "Added: Conversion analytics — every successful conversion is silently logged to a shared cloud database (brand, model, project name, quantities)",
+                "Added: Offline resilience — if the network is unavailable, the log is queued locally and uploaded automatically on the next conversion",
+                "No changes required on user machines — update the .exe as normal",
+            ],
+            "th": [
+                "เพิ่ม: ระบบบันทึกข้อมูลการแปลง — ทุกการแปลงที่สำเร็จจะถูกบันทึกลงฐานข้อมูลกลาง (แบรนด์ รุ่น ชื่อโครงการ จำนวน) โดยอัตโนมัติ",
+                "เพิ่ม: รองรับกรณีไม่มีอินเตอร์เน็ต — บันทึกไว้ในเครื่องและอัปโหลดอัตโนมัติเมื่อเชื่อมต่อครั้งถัดไป",
+                "ผู้ใช้ไม่ต้องติดตั้งอะไรเพิ่ม — อัปเดต .exe ตามปกติ",
+            ],
+        },
+    },
+    {
+        "version": "1.1.1",
+        "date": "2026-05-22",
+        "changes": {
+            "en": [
+                "Fixed: Convert button no longer disappears when the window is resized smaller — action bar is now pinned to the bottom of the window",
+            ],
+            "th": [
+                "แก้ไข: ปุ่ม Convert ไม่หายอีกต่อไปเมื่อย่อขนาดหน้าต่าง — แถบปุ่มตอนนี้ยึดอยู่ที่ด้านล่างของหน้าต่างเสมอ",
+            ],
+        },
+    },
+    {
+        "version": "1.1.0",
+        "date": "2026-05-22",
+        "changes": {
+            "en": [
+                "Added: 'Combine door types into one sheet' checkbox — when checked (default), all door categories (Aluminium Door, Door, Wood Door, Glass Door, Built-in, etc.) are merged into a single output sheet instead of separate sheets per category",
+                "Behaviour: checkbox is on by default; uncheck to restore the previous per-category multi-sheet output",
+            ],
+            "th": [
+                "เพิ่ม: ช่องทำเครื่องหมาย 'รวมประเภทประตูเป็นชีตเดียว' — เมื่อเลือก (ค่าเริ่มต้น) ประเภทประตูทั้งหมดจะรวมอยู่ในชีตเดียวแทนที่จะแยกเป็นหลายชีตตามหมวดหมู่",
+                "พฤติกรรม: เปิดอยู่ตามค่าเริ่มต้น ยกเลิกการเลือกเพื่อกลับสู่การแยกชีตตามหมวดหมู่เดิม",
+            ],
+        },
+    },
+    {
+        "version": "1.0.9",
+        "date": "2026-05-14",
+        "changes": {
+            "en": [
+                "Fixed: Hidden and very-hidden sheets in BOQ workbooks are now ignored during parsing, config detection, and the sheet picker",
+            ],
+            "th": [
+                "แก้ไข: ชีตที่ถูกซ่อน (hidden / very hidden) ในไฟล์ BOQ จะถูกข้ามในการอ่านไฟล์ การตรวจหาการตั้งค่า และตัวเลือกชีต",
+            ],
+        },
+    },
+    {
+        "version": "1.0.8",
+        "date": "2026-04-22",
+        "changes": {
+            "en": [
+                "Added: Error Log viewer - view, scroll, and clear application logs from the Settings section",
+                "Added: Full error logging with tracebacks for parse and conversion errors (in-memory, export when needed)",
+                "Fixed: Stale bytecode cache causing conversion errors after code updates",
+            ],
+            "th": [
+                "เพิ่ม: ตัวดูบันทึกข้อผิดพลาด - ดู เลื่อน และล้างบันทึกแอปจากส่วนตั้งค่า",
+                "เพิ่ม: ระบบบันทึกข้อผิดพลาดพร้อม traceback สำหรับข้อผิดพลาดในการอ่านและแปลง (เก็บในหน่วยความจำ ส่งออกได้เมื่อต้องการ)",
+                "แก้ไข: แคช bytecode เก่าที่ทำให้เกิดข้อผิดพลาดในการแปลงหลังอัพเดทโค้ด",
+            ],
+        },
+    },
+    {
+        "version": "1.0.7",
+        "date": "2026-04-22",
+        "changes": {
+            "en": [
+                "Fixed: Door quantities from cover sheet now correctly map to individual door codes in Group-based BOQ files",
+                "Added: source_group tracking - each door code remembers which Group it belongs to, enabling accurate quantity inheritance from the cover sheet",
+                "Supports multi-group sheets (e.g. Group3,5) where each sub-group has separate quantities",
+            ],
+            "th": [
+                "แก้ไข: จำนวนประตูจากใบปะหน้าสามารถแมปไปยังรหัสประตูแต่ละบานในไฟล์ BOQ แบบ Group ได้ถูกต้อง",
+                "เพิ่ม: ระบบติดตาม source_group - รหัสประตูแต่ละบานจดจำว่าอยู่ใน Group ไหน เพื่อรับจำนวนจากใบปะหน้าได้แม่นยำ",
+                "รองรับชีตที่มีหลาย Group (เช่น Group3,5) โดยแต่ละ sub-group มีจำนวนแยกกัน",
+            ],
+        },
+    },
+    {
+        "version": "1.0.6",
+        "date": "2026-04-22",
+        "changes": {
+            "en": [
+                "Fixed: BOQ files using Group-based sheet names (e.g. Group1, Group2A, Group3,5) now correctly extract individual door codes as column headers instead of showing group names",
+                "Added: Per-sheet dynamic detection of door code rows - parser now scans each sheet independently instead of relying on a fixed start row from the first sheet",
+                "Added: Group label filtering - 'Group X' section headers are recognized and skipped so they never appear as door codes in the warehouse form",
+            ],
+            "th": [
+                "แก้ไข: ไฟล์ BOQ ที่ใช้ชื่อชีตแบบ Group (เช่น Group1, Group2A, Group3,5) สามารถดึงรหัสประตูแต่ละบานเป็นหัวคอลัมน์ได้ถูกต้อง แทนที่จะแสดงชื่อ Group",
+                "เพิ่ม: ระบบตรวจจับตำแหน่งรหัสประตูแบบอัตโนมัติต่อชีต - parser สแกนแต่ละชีตแยกกัน แทนที่จะใช้ตำแหน่งเริ่มต้นจากชีตแรก",
+                "เพิ่ม: กรองป้ายชื่อ Group - ระบบจะข้ามหัวข้อ 'Group X' ไม่ให้ปรากฏเป็นรหัสประตูในฟอร์มโรงงาน",
+            ],
+        },
+    },
+    {
+        "version": "1.0.5",
+        "date": "2026-04-08",
+        "changes": {
+            "en": [
+                "Added: Products from BOQ OPTION sections are now labelled 'Option' in column A of the warehouse form",
+                "Technical: Added is_option field to Product dataclass; set to True for all products parsed after a repeated header row within a BOQ sheet",
+            ],
+            "th": [
+                "เพิ่ม: สินค้าจากส่วน OPTION ใน BOQ จะแสดงคำว่า 'Option' ในคอลัมน์ A ของฟอร์มโรงงาน",
+                "เทคนิค: เพิ่มฟิลด์ is_option ใน Product dataclass; ตั้งค่าเป็น True สำหรับสินค้าที่ parse หลังแถวหัวตารางซ้ำในชีต BOQ",
+            ],
+        },
+    },
+    {
+        "version": "1.0.4",
+        "date": "2026-04-08",
+        "changes": {
+            "en": [
+                "Fixed: Column headers (BRAND, MODEL, DESCRIPTION) no longer appear as product rows in output — caused by BOQ sheets that repeat the header row before an OPTION section",
+                "Fixed: Products in secondary sections (e.g. OPTION blocks) are now captured — data scan range extended from header+25 to header+100 rows",
+            ],
+            "th": [
+                "แก้ไข: หัวคอลัมน์ (BRAND, MODEL, DESCRIPTION) ไม่แสดงเป็นแถวสินค้าในผลลัพธ์อีกต่อไป — เกิดจาก BOQ ที่คัดลอกแถวหัวตารางซ้ำก่อนส่วน OPTION",
+                "แก้ไข: สินค้าในส่วนที่สอง (เช่น ส่วน OPTION) ถูกดึงข้อมูลแล้ว — ขยายช่วงการสแกนจาก header+25 เป็น header+100 แถว",
+            ],
+        },
+    },
+    {
+        "version": "1.0.3",
+        "date": "2026-04-08",
+        "changes": {
+            "en": [
+                "Fixed: Door quantity mapping now uses exact matching — codes like D2.2 no longer inherit D2's quantity (was caused by substring check in qty map builder)",
+                "Fixed: D2.2 shows 2 (was 7), D4.1 shows 7 (was 21), D11.1 shows 37 (was 106)",
+                "Added: 'Use UNIT price' checkbox — outputs raw col-I (UNIT) price for all products, ignoring Net After Discount column",
+                "Technical: Added raw_list_price field to Product dataclass to preserve original col-I value",
+            ],
+            "th": [
+                "แก้ไข: การจับคู่จำนวนประตูใช้การเปรียบเทียบแบบตรงตัว — รหัสเช่น D2.2 จะไม่รับจำนวนของ D2 อีกต่อไป",
+                "แก้ไข: จำนวน D2.2 = 2 (เดิม 7), D4.1 = 7 (เดิม 21), D11.1 = 37 (เดิม 106)",
+                "เพิ่ม: Checkbox 'ใช้ราคา UNIT' — แสดงราคาจากคอลัมน์ I สำหรับทุกผลิตภัณฑ์ ไม่สนใจคอลัมน์ Net After Discount",
+                "เทคนิค: เพิ่มฟิลด์ raw_list_price ใน Product dataclass เพื่อเก็บค่าคอลัมน์ I เดิม",
+            ],
+        },
+    },
+    {
+        "version": "1.0.2",
+        "date": "2026-04-03",
+        "changes": {
+            "en": [
+                "Fixed: Missing prices for items in merged Excel cells (e.g., MIWA handle/lock sets) by implementing a merged-value lookup system",
+                "Improved: Parser performance by building the merged-cell lookup once per sheet before the product loop",
+                "Fixed: unit_price (Col I) and net_val (Col J) now correctly fall back to merged values when a cell returns None",
+                "Technical: Preserved existing logic for NET price detection in column J",
+                "Changed: Default language set to Thai (th) for broader accessibility",
+            ],
+            "th": [
+                "แก้ไข: ปัญหาราคาไม่แสดงสำหรับรายการในเซลล์ที่ถูกผสาน (Merged Cells) เช่น ชุดมือจับและตลับกุญแจ MIWA โดยการเพิ่มระบบค้นหาค่าจากเซลล์ที่ผสาน",
+                "ปรับปรุง: ประสิทธิภาพการประมวลผลโดยสร้างตารางค้นหาค่าเซลล์ที่ผสานเพียงครั้งเดียวต่อชีทก่อนเริ่มอ่านข้อมูลสินค้า",
+                "แก้ไข: คอลัมน์ unit_price (I) และ net_val (J) สามารถดึงราคาจากเซลล์หลักได้ถูกต้องในกรณีที่เป็นเซลล์ที่ถูกผสาน",
+                "ทางเทคนิค: ยังคงรักษากฎการตรวจจับราคา NET ในคอลัมน์ J ไว้ตามเดิมโดยไม่ส่งผลกระทบ",
+                "เปลี่ยนแปลง: ตั้งค่าภาษาเริ่มต้นเป็นภาษาไทย (th) เพื่อให้เข้าถึงได้ง่ายขึ้น",
+            ]
+        }
+    },
+    {
+        "version": "1.0.1",
+        "date": "2026-03-30",
+        "changes": {
+            "en": [
+                "Fixed: Cover sheet (ใบปะหน้า) not mapping door quantities correctly",
+                "Fixed: Door code detection now finds ALL codes (was skipping first code in some sheets)",
+                "Fixed: Hyphenated door codes (D-3, D-21) now recognized correctly",
+                "Fixed: Comma-separated sheet names (D1,2,5,3) now split into individual door codes (D1, D2, D5, D3)",
+                "Fixed: Range notation in sheet names (D-14,17-19,33-35) expanded correctly",
+                "Improved: Cell Reference Settings dialog wider for better readability",
+                "Improved: Field buttons wider to show full text without truncation",
+                "Added: Version info and changelog accessible from the app",
+            ],
+            "th": [
+                "แก้ไข: ใบปะหน้าไม่ดึงจำนวนประตูมาถูกต้อง",
+                "แก้ไข: ตรวจจับรหัสประตูได้ครบทุกรหัสแล้ว (ก่อนหน้านี้ข้ามรหัสแรกในบางชีท)",
+                "แก้ไข: รหัสประตูที่มีขีด (D-3, D-21) ตรวจจับได้ถูกต้อง",
+                "แก้ไข: ชื่อชีทที่มีจุลภาค (D1,2,5,3) แยกเป็นรหัสประตูแต่ละตัว (D1, D2, D5, D3)",
+                "แก้ไข: ช่วงตัวเลขในชื่อชีท (D-14,17-19,33-35) ขยายได้ถูกต้อง",
+                "ปรับปรุง: หน้าต่างตั้งค่าอ้างอิงเซลล์กว้างขึ้นอ่านง่ายขึ้น",
+                "ปรับปรุง: ปุ่มฟิลด์กว้างขึ้นเห็นข้อความเต็ม",
+                "เพิ่ม: ข้อมูลเวอร์ชันและบันทึกการเปลี่ยนแปลงในแอป",
+            ],
+        },
+    },
+    {
+        "version": "1.0.0",
+        "date": "2026-03-20",
+        "changes": {
+            "en": [
+                "Initial release",
+                "Parse BOQ Excel files and convert to warehouse picking forms",
+                "Multi-file support with category auto-detection",
+                "EN/TH language toggle",
+                "Visual cell reference selector",
+                "Pricing section toggle (show/hide prices)",
+                "Brand name prefixing for all products",
+                "NET price detection from column J",
+                "Auto-detect cell references from BOQ files",
+                "PyInstaller support for standalone .exe",
+            ],
+            "th": [
+                "เวอร์ชันแรก",
+                "อ่านไฟล์ BOQ Excel และแปลงเป็นฟอร์มหยิบสินค้าคลัง",
+                "รองรับหลายไฟล์พร้อมตรวจจับหมวดหมู่อัตโนมัติ",
+                "สลับภาษา EN/TH",
+                "ตัวเลือกอ้างอิงเซลล์แบบภาพ",
+                "เปิด/ปิดส่วนราคา",
+                "แสดงชื่อแบรนด์นำหน้าสินค้าทั้งหมด",
+                "ตรวจจับราคา NET จากคอลัมน์ J",
+                "ตรวจจับอ้างอิงเซลล์อัตโนมัติจากไฟล์ BOQ",
+                "รองรับ PyInstaller สำหรับ .exe แบบสแตนด์อโลน",
+            ],
+        },
+    },
+]

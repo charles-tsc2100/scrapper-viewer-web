@@ -1,0 +1,107 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# PyInstaller
+build/
+**/dist/*.exe
+**/dist/*.zip
+**/dist/*.log
+*.spec
+
+# Sensitive — never commit credentials
+.env
+**/db_config.json
+**/lark_config.json
+
+# Generated output & test artifacts
+warehouse_form_*.xlsx
+boq_converter.log
+*.log
+optest.txt
+
+# Loose debug / one-off scripts at repo root
+debug*.py
+debug*.txt
+check_*.py
+check_*.txt
+check_out.txt
+verify_*.py
+verify_*.txt
+fix_*.py
+fix_*.txt
+show_*.py
+restore*.py
+restore*.txt
+read_*.py
+update_*.py
+update_*.txt
+print_*.py
+parse_*.py
+patch_*.py
+patch_*.txt
+merge_*.py
+merge_*.txt
+rename_*.py
+rename_*.txt
+purge_*.py
+purge_*.txt
+sync_to_lark.py
+build_updates.py
+copy_payload.py
+create_template.py
+inspect_excel.py
+start_date_quarter.py
+start_qtr_output.txt
+test_fix.py
+test_generate.py
+test_lark_api.py
+test_lark_put.py
+test_lark_put2.py
+test_write.txt
+output_updates.py
+lark_payload.json
+lark_updates.json
+cleaned_data.json
+updates_lines.txt
+excel_cols.txt
+excel_cols2.txt
+project_types*.txt
+payload_out.txt
+daily_briefing_*.md
+calendar_api_raw.txt
+calendar_debug_output.txt
+calculator.html
+
+# Loose images at repo root
+image*.jpg
+image*.jpeg
+image*.png
+
+# Scraper generated output
+scrapper/output/
+scrapper/__pycache__/
+scrapper/viewer/__pycache__/
+scrapper/viewer/asset_manifest.json
+scrapper/viewer/upload_log.txt
+scrapper/scrapper-viewer-web.*.build.log
+
+# Unrelated business files at repo root
+BCI Reports/
+CRM*/
+CSV Files/
+Email Migration/
+Journey/
+LINE_*.docx
+PLANET/
+SALE*/
+Sale*/
+TSC*/
+WP Reports/
+WP Stats/
+ELMES_UNION_*.pptx
+git/
+
+# Claude session metadata
+.claude/
+.sessions/

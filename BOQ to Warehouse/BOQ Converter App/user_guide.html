@@ -1,0 +1,1260 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BOQ to Warehouse — User Guide</title>
+  <style>
+    /* ─── Reset & Base ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:       #0D1B2A;
+      --navy-light: #162234;
+      --cyan-deep:  #006875;
+      --cyan:       #00BCD4;
+      --cyan-bright:#00E5FF;
+      --surface:    #F4F7FA;
+      --surface-alt:#EAF0F6;
+      --card:       #FFFFFF;
+      --border:     #D0DCE8;
+      --text:       #1A2B3C;
+      --text-muted: #5C7080;
+      --text-light: #8FA3B2;
+      --success:    #27AE60;
+      --warning:    #F39C12;
+      --danger:     #E74C3C;
+      --radius:     12px;
+      --radius-sm:  8px;
+      --shadow:     0 2px 12px rgba(0,0,0,0.08);
+      --shadow-md:  0 4px 24px rgba(0,0,0,0.12);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    /* ─── Header ───────────────────────────────────── */
+    .site-header {
+      background: var(--navy);
+      color: white;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+    }
+    .header-brand { display: flex; align-items: center; gap: 14px; }
+    .header-logo {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--cyan-deep), var(--cyan-bright));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 800; color: white;
+      flex-shrink: 0;
+    }
+    .header-title { font-size: 16px; font-weight: 700; color: white; }
+    .header-subtitle { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 1px; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .lang-toggle {
+      background: none; border: 1.5px solid var(--cyan-bright);
+      color: var(--cyan-bright); border-radius: 20px;
+      padding: 5px 16px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .lang-toggle:hover { background: var(--cyan-bright); color: var(--navy); }
+    .version-badge {
+      background: rgba(255,255,255,0.1); border-radius: 6px;
+      padding: 3px 10px; font-size: 11px; color: rgba(255,255,255,0.6);
+    }
+
+    /* ─── Layout ───────────────────────────────────── */
+    .layout { display: flex; min-height: calc(100vh - 64px); }
+
+    /* ─── Sidebar ──────────────────────────────────── */
+    .sidebar {
+      width: 240px; flex-shrink: 0;
+      background: var(--card);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: sticky;
+      top: 64px;
+      height: calc(100vh - 64px);
+      overflow-y: auto;
+    }
+    .sidebar-section-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-light);
+      padding: 0 20px 8px;
+    }
+    .sidebar-nav { list-style: none; margin-bottom: 24px; }
+    .sidebar-nav li a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 20px;
+      font-size: 13.5px; color: var(--text-muted);
+      text-decoration: none; border-radius: 0;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    .sidebar-nav li a:hover { background: var(--surface); color: var(--text); }
+    .sidebar-nav li a.active {
+      color: var(--cyan-deep); background: #E8F5F7;
+      border-left-color: var(--cyan-deep); font-weight: 600;
+    }
+    .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+
+    /* ─── Main Content ─────────────────────────────── */
+    .main { flex: 1; padding: 40px 48px; max-width: 900px; }
+
+    /* ─── Section ──────────────────────────────────── */
+    .section { margin-bottom: 56px; scroll-margin-top: 80px; }
+    .section-header { margin-bottom: 24px; }
+    .section-tag {
+      display: inline-block;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--cyan-deep);
+      background: #E8F5F7; border-radius: 4px;
+      padding: 2px 8px; margin-bottom: 8px;
+    }
+    h1 { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1.2; }
+    h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+    h3 { font-size: 16px; font-weight: 700; color: var(--text); }
+    .section-desc { color: var(--text-muted); margin-top: 8px; max-width: 640px; }
+
+    /* ─── Cards ────────────────────────────────────── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .card + .card { margin-top: 16px; }
+    .card-header {
+      display: flex; align-items: flex-start; gap: 16px;
+      margin-bottom: 16px;
+    }
+    .card-icon {
+      width: 42px; height: 42px; border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .icon-blue   { background: #E3F2FD; }
+    .icon-cyan   { background: #E0F7FA; }
+    .icon-green  { background: #E8F5E9; }
+    .icon-orange { background: #FFF3E0; }
+    .icon-purple { background: #F3E5F5; }
+    .icon-red    { background: #FFEBEE; }
+
+    /* ─── Steps ────────────────────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step {
+      display: flex; gap: 20px;
+      padding: 0 0 32px 0; position: relative;
+    }
+    .step:last-child { padding-bottom: 0; }
+    .step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+    .step-number {
+      width: 36px; height: 36px;
+      background: var(--cyan-deep); color: white;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; flex-shrink: 0; z-index: 1;
+    }
+    .step-line {
+      width: 2px; flex: 1; background: var(--border);
+      margin-top: 6px; min-height: 24px;
+    }
+    .step:last-child .step-line { display: none; }
+    .step-body { flex: 1; padding-top: 6px; }
+    .step-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .step-desc { color: var(--text-muted); font-size: 14px; }
+    .step-note {
+      margin-top: 10px; background: #FFF8E1;
+      border-left: 3px solid var(--warning);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 8px 12px; font-size: 13px; color: #7B5800;
+    }
+    .step-tip {
+      margin-top: 10px; background: #E8F5F7;
+      border-left: 3px solid var(--cyan-deep);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 8px 12px; font-size: 13px; color: var(--cyan-deep);
+    }
+
+    /* ─── UI Element Reference Table ───────────────── */
+    .ui-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 700px) { .ui-grid { grid-template-columns: 1fr; } }
+    .ui-item {
+      background: var(--surface-alt); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px 16px;
+    }
+    .ui-item-label {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 600; font-size: 13.5px; margin-bottom: 5px;
+    }
+    .ui-item-desc { font-size: 13px; color: var(--text-muted); }
+    .badge {
+      display: inline-block; border-radius: 4px;
+      padding: 2px 8px; font-size: 11px; font-weight: 600;
+    }
+    .badge-cyan   { background: #E0F7FA; color: var(--cyan-deep); }
+    .badge-navy   { background: #E8EDF2; color: var(--navy); }
+    .badge-green  { background: #E8F5E9; color: #2E7D32; }
+    .badge-orange { background: #FFF3E0; color: #E65100; }
+
+    /* ─── Alert boxes ──────────────────────────────── */
+    .alert {
+      border-radius: var(--radius-sm); padding: 12px 16px;
+      display: flex; gap: 12px; align-items: flex-start;
+      font-size: 14px; margin-bottom: 16px;
+    }
+    .alert-icon { font-size: 16px; flex-shrink: 0; line-height: 1.5; }
+    .alert-warn  { background: #FFF8E1; border: 1px solid #FFE082; color: #7B5800; }
+    .alert-info  { background: #E3F2FD; border: 1px solid #90CAF9; color: #1565C0; }
+    .alert-success { background: #E8F5E9; border: 1px solid #A5D6A7; color: #2E7D32; }
+    .alert-danger  { background: #FFEBEE; border: 1px solid #EF9A9A; color: #C62828; }
+
+    /* ─── Highlight pills for cell refs ────────────── */
+    .cell-pill {
+      display: inline-block; border-radius: 4px; padding: 1px 7px;
+      font-size: 12px; font-weight: 700; font-family: 'Courier New', monospace;
+      margin: 0 2px;
+    }
+    .pill-blue   { background: #BBDEFB; color: #0D47A1; }
+    .pill-orange { background: #FFE0B2; color: #BF360C; }
+    .pill-green  { background: #C8E6C9; color: #1B5E20; }
+    .pill-pink   { background: #F8BBD9; color: #880E4F; }
+    .pill-purple { background: #E1BEE7; color: #4A148C; }
+
+    /* ─── FAQ ──────────────────────────────────────── */
+    .faq-item { border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; overflow: hidden; }
+    .faq-q {
+      width: 100%; background: var(--card); border: none;
+      padding: 14px 20px; text-align: left; font-size: 14px; font-weight: 600;
+      color: var(--text); cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+      transition: background 0.15s;
+    }
+    .faq-q:hover { background: var(--surface-alt); }
+    .faq-q .arrow { transition: transform 0.2s; font-size: 12px; color: var(--text-light); }
+    .faq-q.open .arrow { transform: rotate(180deg); }
+    .faq-a {
+      display: none; padding: 0 20px 16px;
+      background: var(--card); font-size: 14px; color: var(--text-muted);
+    }
+    .faq-a.open { display: block; }
+
+    /* ─── Language switching ───────────────────────── */
+    [lang-en], [lang-th] { display: none; }
+    body.lang-en [lang-en] { display: revert; }
+    body.lang-th [lang-th] { display: revert; }
+    body.lang-en .en-inline { display: inline; }
+    body.lang-th .en-inline { display: none; }
+    body.lang-en .th-inline { display: none; }
+    body.lang-th .th-inline { display: inline; }
+
+    /* ─── App mock screenshot ──────────────────────── */
+    .app-mock {
+      background: var(--navy); border-radius: var(--radius);
+      overflow: hidden; box-shadow: var(--shadow-md);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .app-mock-header {
+      background: var(--navy); padding: 12px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .app-mock-title { color: white; font-size: 14px; font-weight: 700; }
+    .app-mock-sub { color: rgba(255,255,255,0.45); font-size: 11px; }
+    .app-mock-body { padding: 16px; display: flex; gap: 12px; }
+    .mock-col { flex: 1; }
+    .mock-card { background: rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+    .mock-card-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.4); margin-bottom: 8px; font-weight: 600; }
+    .mock-btn {
+      display: inline-block; background: var(--cyan-bright);
+      color: var(--navy); border-radius: 6px;
+      padding: 6px 14px; font-size: 11px; font-weight: 700;
+      margin-bottom: 6px; cursor: default;
+    }
+    .mock-btn-outline {
+      display: inline-block; border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.7); border-radius: 6px;
+      padding: 5px 12px; font-size: 11px; margin-left: 6px; cursor: default;
+    }
+    .mock-file-item {
+      background: rgba(255,255,255,0.04); border-radius: 4px;
+      padding: 5px 8px; font-size: 11px; color: rgba(255,255,255,0.7);
+      margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
+    }
+    .mock-check { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 11px; color: rgba(255,255,255,0.7); }
+    .mock-checkbox { width: 13px; height: 13px; background: var(--cyan-bright); border-radius: 3px; display: inline-block; flex-shrink: 0; }
+    .mock-checkbox-off { background: rgba(255,255,255,0.2); }
+    .mock-input { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 5px 8px; font-size: 11px; color: rgba(255,255,255,0.7); width: 100%; margin-bottom: 6px; }
+    .mock-preview { font-size: 10px; color: rgba(255,255,255,0.5); font-family: 'Courier New', monospace; line-height: 1.7; }
+    .mock-preview-green { color: #66BB6A; }
+    .mock-footer { background: rgba(0,0,0,0.2); padding: 10px 20px; display: flex; align-items: center; gap: 12px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .mock-status { font-size: 11px; color: rgba(255,255,255,0.5); flex: 1; }
+    .mock-convert-btn { background: var(--cyan-bright); color: var(--navy); border-radius: 6px; padding: 7px 20px; font-size: 12px; font-weight: 700; cursor: default; }
+    .mock-progress { height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; margin-top: 6px; }
+    .mock-progress-bar { height: 100%; background: var(--cyan-bright); border-radius: 2px; width: 0; }
+
+    /* ─── Table ────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th { background: var(--surface-alt); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; font-size: 13.5px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface); }
+
+    /* ─── Divider ──────────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+    /* ─── Responsive ───────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { padding: 24px 20px; }
+      .app-mock-body { flex-direction: column; }
+      .dialog-body { grid-template-columns: 1fr; }
+      .ui-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Scroll-active sidebar links ──────────────── */
+    .sidebar-nav li a { transition: all 0.2s; }
+  </style>
+</head>
+<body class="lang-th">
+
+<!-- ═══════════════════════════════════════════════════
+     HEADER
+════════════════════════════════════════════════════ -->
+<header class="site-header">
+  <div class="header-brand">
+    <div class="header-logo">B</div>
+    <div>
+      <div class="header-title">BOQ to Warehouse</div>
+      <div class="header-subtitle">User Guide · Today Style 2100 Co., Ltd.</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="lang-toggle" onclick="toggleLang()" id="langBtn">
+      <span>🌐</span>
+      <span id="langBtnLabel">English</span>
+    </button>
+    <span class="version-badge">v1.1.0</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════
+     LAYOUT
+════════════════════════════════════════════════════ -->
+<div class="layout">
+
+  <!-- ── Sidebar ─────────────────────────────────── -->
+  <nav class="sidebar" id="sidebar">
+    <p class="sidebar-section-title" lang-en>Getting Started</p>
+    <p class="sidebar-section-title" lang-th>เริ่มต้นใช้งาน</p>
+    <ul class="sidebar-nav">
+      <li><a href="#overview" class="nav-link"><span class="nav-icon">📋</span><span lang-en>Overview</span><span lang-th>ภาพรวม</span></a></li>
+      <li><a href="#requirements" class="nav-link"><span class="nav-icon">✅</span><span lang-en>Requirements</span><span lang-th>ความต้องการ</span></a></li>
+      <li><a href="#launch" class="nav-link"><span class="nav-icon">🚀</span><span lang-en>Launching the App</span><span lang-th>เปิดโปรแกรม</span></a></li>
+    </ul>
+
+    <p class="sidebar-section-title" lang-en>Workflow</p>
+    <p class="sidebar-section-title" lang-th>ขั้นตอนการใช้งาน</p>
+    <ul class="sidebar-nav">
+      <li><a href="#step-load" class="nav-link"><span class="nav-icon">📁</span><span lang-en>1. Load Files</span><span lang-th>1. โหลดไฟล์</span></a></li>
+      <li><a href="#step-settings" class="nav-link"><span class="nav-icon">⚙️</span><span lang-en>2. Settings</span><span lang-th>2. การตั้งค่า</span></a></li>
+      <li><a href="#step-preview" class="nav-link"><span class="nav-icon">👁</span><span lang-en>3. Preview</span><span lang-th>3. ดูตัวอย่าง</span></a></li>
+      <li><a href="#step-convert" class="nav-link"><span class="nav-icon">⚡</span><span lang-en>4. Convert</span><span lang-th>4. แปลงไฟล์</span></a></li>
+    </ul>
+
+    <p class="sidebar-section-title" lang-en>Reference</p>
+    <p class="sidebar-section-title" lang-th>อ้างอิง</p>
+    <ul class="sidebar-nav">
+      <li><a href="#ui-elements" class="nav-link"><span class="nav-icon">🖥</span><span lang-en>UI Elements</span><span lang-th>ส่วนประกอบ UI</span></a></li>
+      <li><a href="#cell-refs" class="nav-link"><span class="nav-icon">📊</span><span lang-en>Cell References</span><span lang-th>การอ้างอิงเซลล์</span></a></li>
+      <li><a href="#faq" class="nav-link"><span class="nav-icon">❓</span><span lang-en>FAQ</span><span lang-th>คำถามที่พบบ่อย</span></a></li>
+    </ul>
+  </nav>
+
+  <!-- ── Main ────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- ▸ OVERVIEW ─────────────────────────────── -->
+    <section class="section" id="overview">
+      <div class="section-header">
+        <div class="section-tag" lang-en>Overview</div>
+        <div class="section-tag" lang-th>ภาพรวม</div>
+        <h1 lang-en>BOQ to Warehouse Form Converter</h1>
+        <h1 lang-th>โปรแกรมแปลง BOQ เป็นแบบฟอร์มคลังสินค้า</h1>
+        <p class="section-desc" lang-en>
+          Automatically extract door types, hardware products, and quantities from BOQ Excel files
+          and generate clean warehouse picking forms — ready for your team in seconds.
+        </p>
+        <p class="section-desc" lang-th>
+          แปลงไฟล์ BOQ Excel ให้เป็นแบบฟอร์มเบิกสินค้าคลังสินค้าโดยอัตโนมัติ ดึงข้อมูลประเภทประตู อุปกรณ์ และจำนวนได้อย่างรวดเร็วและแม่นยำ
+        </p>
+      </div>
+
+      <!-- App screenshot -->
+      <img
+        src="pictures/app example.png"
+        alt="BOQ to Warehouse Form — application screenshot"
+        style="width:100%;border-radius:var(--radius);box-shadow:var(--shadow-md);border:1px solid var(--border);display:block;"
+      />
+
+      <div style="margin-top:24px;" class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        <span lang-en>This app is designed for <strong>Today Style 2100 Co., Ltd.</strong> and is optimized for Thai construction hardware BOQ documents structured with a cover sheet (<strong>ใบปะหน้า</strong>) and BOQ sheets.</span>
+        <span lang-th>โปรแกรมนี้ออกแบบมาสำหรับ <strong>บริษัท Today Style 2100</strong> และเหมาะสำหรับเอกสาร BOQ อุปกรณ์ก่อสร้างของไทย ที่มีโครงสร้างประกอบด้วยใบปะหน้าและชีท BOQ</span>
+      </div>
+    </section>
+
+    <!-- ▸ REQUIREMENTS ─────────────────────────── -->
+    <section class="section" id="requirements">
+      <div class="section-header">
+        <div class="section-tag" lang-en>Requirements</div>
+        <div class="section-tag" lang-th>ความต้องการของระบบ</div>
+        <h2 lang-en>Before You Start</h2>
+        <h2 lang-th>ก่อนเริ่มใช้งาน</h2>
+      </div>
+
+      <div class="ui-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon icon-blue">💻</div>
+            <div>
+              <h3 lang-en>System</h3>
+              <h3 lang-th>ระบบ</h3>
+            </div>
+          </div>
+          <ul style="padding-left:18px;font-size:14px;color:var(--text-muted);line-height:2;">
+            <li lang-en>Windows 10 / 11</li>
+            <li lang-th>Windows 10 / 11</li>
+            <li lang-en>Python 3.7+ (if running from source)</li>
+            <li lang-th>Python 3.7+ (หากรันจาก source code)</li>
+            <li lang-en>Microsoft Excel (to open output)</li>
+            <li lang-th>Microsoft Excel (สำหรับเปิดไฟล์ผลลัพธ์)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon icon-green">📄</div>
+            <div>
+              <h3 lang-en>BOQ File Requirements</h3>
+              <h3 lang-th>ข้อกำหนดไฟล์ BOQ</h3>
+            </div>
+          </div>
+          <ul style="padding-left:18px;font-size:14px;color:var(--text-muted);line-height:2;">
+            <li lang-en>Format: <strong>.xlsx</strong> (Excel)</li>
+            <li lang-th>รูปแบบ: <strong>.xlsx</strong> (Excel)</li>
+            <li lang-en>Must contain a <strong>ใบปะหน้า</strong> cover sheet</li>
+            <li lang-th>ต้องมีชีท <strong>ใบปะหน้า</strong></li>
+            <li lang-en>BOQ sheets with door codes and products</li>
+            <li lang-th>ชีท BOQ ที่มีรหัสประตูและรายการสินค้า</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="alert alert-warn" style="margin-top:16px;">
+        <span class="alert-icon">⚠️</span>
+        <span lang-en>BOQ files <strong>must include the "ใบปะหน้า" (cover sheet)</strong> for door quantity mapping to work correctly. Without it, the app cannot match how many of each door type are needed.</span>
+        <span lang-th>ไฟล์ BOQ <strong>ต้องมีชีท "ใบปะหน้า"</strong> เพื่อให้การแมปจำนวนประตูทำงานได้ถูกต้อง หากไม่มี โปรแกรมจะไม่สามารถระบุจำนวนของแต่ละประเภทประตูได้</span>
+      </div>
+    
+      <!-- Sheet Naming Conventions -->
+      <div style="margin-top:24px;padding:20px;background:var(--surface-low);border-radius:12px;border:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <span style="font-size:20px;">&#128203;</span>
+          <div>
+            <h3 lang-en style="margin:0;">Sheet Naming Conventions</h3>
+            <h3 lang-th style="margin:0;">&#3619;&#3641;&#3611;&#3649;&#3610;&#3610;&#3585;&#3634;&#3619;&#3605;&#3633;&#3657;&#3591;&#3594;&#3639;&#3656;&#3629;&#3594;&#3637;&#3605;</h3>
+          </div>
+        </div>
+        <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;" lang-en>
+          The converter supports <strong>two naming formats</strong> for BOQ sheets. You can use either one &#8212; the app auto-detects which format your file uses.
+        </p>
+        <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;" lang-th>
+          &#3605;&#3633;&#3623;&#3649;&#3611;&#3621;&#3591;&#3619;&#3629;&#3591;&#3619;&#3633;&#3610;<strong>&#3619;&#3641;&#3611;&#3649;&#3610;&#3610;&#3585;&#3634;&#3619;&#3605;&#3633;&#3657;&#3591;&#3594;&#3639;&#3656;&#3629; 2 &#3649;&#3610;&#3610;</strong>&#3626;&#3635;&#3627;&#3619;&#3633;&#3610;&#3594;&#3637;&#3605; BOQ &#3626;&#3634;&#3617;&#3634;&#3619;&#3606;&#3651;&#3594;&#3657;&#3649;&#3610;&#3610;&#3651;&#3604;&#3585;&#3655;&#3652;&#3604;&#3657; &#8212; &#3649;&#3629;&#3611;&#3592;&#3632;&#3605;&#3619;&#3623;&#3592;&#3592;&#3633;&#3610;&#3619;&#3641;&#3611;&#3649;&#3610;&#3610;&#3629;&#3633;&#3605;&#3650;&#3609;&#3617;&#3633;&#3605;&#3636;
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div style="padding:14px;background:var(--surface);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-weight:600;margin-bottom:8px;color:var(--text);">
+              <span lang-en>Option 1: Door Code Sheets</span>
+              <span lang-th>&#3649;&#3610;&#3610;&#3607;&#3637;&#3656; 1: &#3605;&#3633;&#3657;&#3591;&#3594;&#3639;&#3656;&#3629;&#3594;&#3637;&#3605;&#3604;&#3657;&#3623;&#3618;&#3619;&#3627;&#3633;&#3626;&#3611;&#3619;&#3632;&#3605;&#3641;</span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px;" lang-en>
+              Each sheet is named after the door code directly. This is the straightforward approach.
+            </p>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px;" lang-th>
+              &#3649;&#3605;&#3656;&#3621;&#3632;&#3594;&#3637;&#3605;&#3605;&#3633;&#3657;&#3591;&#3594;&#3639;&#3656;&#3629;&#3605;&#3634;&#3617;&#3619;&#3627;&#3633;&#3626;&#3611;&#3619;&#3632;&#3605;&#3641;&#3650;&#3604;&#3618;&#3605;&#3619;&#3591; &#3648;&#3611;&#3655;&#3609;&#3623;&#3636;&#3608;&#3637;&#3607;&#3637;&#3656;&#3605;&#3619;&#3591;&#3652;&#3611;&#3605;&#3619;&#3591;&#3617;&#3634;
+            </p>
+            <div style="font-size:12px;background:var(--surface-low);padding:8px 10px;border-radius:6px;font-family:monospace;">
+              Sheet: <strong>D1</strong> &#8594; door code D1<br>
+              Sheet: <strong>D2</strong> &#8594; door code D2<br>
+              Sheet: <strong>AD1</strong> &#8594; door code AD1<br>
+              Sheet: <strong>D1,2,5,3</strong> &#8594; D1, D2, D5, D3
+            </div>
+          </div>
+
+          <div style="padding:14px;background:var(--surface);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-weight:600;margin-bottom:8px;color:var(--text);">
+              <span lang-en>Option 2: Group Sheets</span>
+              <span lang-th>&#3649;&#3610;&#3610;&#3607;&#3637;&#3656; 2: &#3605;&#3633;&#3657;&#3591;&#3594;&#3639;&#3656;&#3629;&#3594;&#3637;&#3605;&#3604;&#3657;&#3623;&#3618; Group</span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px;" lang-en>
+              Sheets are named by group (e.g. Group1, Group2A). The actual door codes must be listed inside the sheet, under the group label.
+            </p>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px;" lang-th>
+              &#3594;&#3637;&#3605;&#3605;&#3633;&#3657;&#3591;&#3594;&#3639;&#3656;&#3629;&#3605;&#3634;&#3617; Group (&#3648;&#3594;&#3656;&#3609; Group1, Group2A) &#3650;&#3604;&#3618;&#3619;&#3627;&#3633;&#3626;&#3611;&#3619;&#3632;&#3605;&#3641;&#3592;&#3619;&#3636;&#3591;&#3605;&#3657;&#3629;&#3591;&#3619;&#3632;&#3610;&#3640;&#3629;&#3618;&#3641;&#3656;&#3616;&#3634;&#3618;&#3651;&#3609;&#3594;&#3637;&#3605; &#3651;&#3605;&#3657;&#3594;&#3639;&#3656;&#3629; Group
+            </p>
+            <div style="font-size:12px;background:var(--surface-low);padding:8px 10px;border-radius:6px;font-family:monospace;">
+              Sheet: <strong>Group1</strong> &#8594; contains D01, D09<br>
+              Sheet: <strong>Group3,5</strong> &#8594; Group 3 + Group 5<br>
+              Sheet: <strong>Group22-AD01,03</strong> &#8594; AD01, AD03
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:12px 14px;background:#e8f4fd;border-radius:8px;border:1px solid #b8daff;">
+          <span style="font-size:16px;">&#128161;</span>
+          <span lang-en><strong>Comma-separated names auto-split:</strong> Sheet names like <code>D1,2,3</code> automatically expand into individual door codes (D1, D2, D3). Similarly, <code>Group3,5</code> is treated as two groups (Group 3 and Group 5) with their door codes separated accordingly. Each door code inherits its group's quantity from the cover sheet.</span>
+          <span lang-th><strong>&#3594;&#3639;&#3656;&#3629;&#3607;&#3637;&#3656;&#3588;&#3633;&#3656;&#3609;&#3604;&#3657;&#3623;&#3618;&#3592;&#3640;&#3621;&#3616;&#3634;&#3588;&#3592;&#3632;&#3649;&#3618;&#3585;&#3629;&#3633;&#3605;&#3650;&#3609;&#3617;&#3633;&#3605;&#3636;:</strong> &#3594;&#3639;&#3656;&#3629;&#3594;&#3637;&#3605;&#3648;&#3594;&#3656;&#3609; <code>D1,2,3</code> &#3592;&#3632;&#3586;&#3618;&#3634;&#3618;&#3648;&#3611;&#3655;&#3609;&#3619;&#3627;&#3633;&#3626;&#3611;&#3619;&#3632;&#3605;&#3641;&#3649;&#3605;&#3656;&#3621;&#3632;&#3610;&#3634;&#3609;&#3629;&#3633;&#3605;&#3650;&#3609;&#3617;&#3633;&#3605;&#3636; (D1, D2, D3) &#3648;&#3594;&#3656;&#3609;&#3648;&#3604;&#3637;&#3618;&#3623;&#3585;&#3633;&#3610; <code>Group3,5</code> &#3607;&#3637;&#3656;&#3592;&#3632;&#3606;&#3641;&#3585;&#3649;&#3618;&#3585;&#3648;&#3611;&#3655;&#3609; 2 &#3585;&#3621;&#3640;&#3656;&#3617; (Group 3 &#3649;&#3621;&#3632; Group 5) &#3650;&#3604;&#3618;&#3619;&#3627;&#3633;&#3626;&#3611;&#3619;&#3632;&#3605;&#3641;&#3651;&#3609;&#3649;&#3605;&#3656;&#3621;&#3632;&#3585;&#3621;&#3640;&#3656;&#3617;&#3592;&#3632;&#3619;&#3633;&#3610;&#3592;&#3635;&#3609;&#3623;&#3609;&#3592;&#3634;&#3585;&#3651;&#3610;&#3611;&#3632;&#3627;&#3609;&#3657;&#3634;&#3605;&#3634;&#3617; Group &#3607;&#3637;&#3656;&#3626;&#3633;&#3591;&#3585;&#3633;&#3604;</span>
+        </div>
+      </div>
+</section>
+
+    <!-- ▸ LAUNCH ────────────────────────────────── -->
+    <section class="section" id="launch">
+      <div class="section-header">
+        <div class="section-tag" lang-en>Launch</div>
+        <div class="section-tag" lang-th>เปิดโปรแกรม</div>
+        <h2 lang-en>Launching the App</h2>
+        <h2 lang-th>วิธีเปิดโปรแกรม</h2>
+      </div>
+      <div class="ui-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon icon-orange">🖱️</div>
+            <div>
+              <h3 lang-en>Option A — Executable (.exe)</h3>
+              <h3 lang-th>วิธี A — ไฟล์ .exe</h3>
+            </div>
+          </div>
+          <p style="font-size:14px;color:var(--text-muted);" lang-en>Double-click <strong>BOQ Converter.exe</strong> inside the <code>dist/</code> folder. No installation needed.</p>
+          <p style="font-size:14px;color:var(--text-muted);" lang-th>ดับเบิลคลิกที่ <strong>BOQ Converter.exe</strong> ในโฟลเดอร์ <code>dist/</code> ไม่จำเป็นต้องติดตั้งเพิ่มเติม</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon icon-purple">⌨️</div>
+            <div>
+              <h3 lang-en>Option B — run.bat</h3>
+              <h3 lang-th>วิธี B — run.bat</h3>
+            </div>
+          </div>
+          <p style="font-size:14px;color:var(--text-muted);" lang-en>Double-click <strong>run.bat</strong> in the <code>BOQ Converter App/</code> folder. Python must be installed and in your PATH.</p>
+          <p style="font-size:14px;color:var(--text-muted);" lang-th>ดับเบิลคลิกที่ <strong>run.bat</strong> ในโฟลเดอร์ <code>BOQ Converter App/</code> ต้องติดตั้ง Python ไว้ในระบบก่อน</p>
+        </div>
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- ▸ STEP 1: LOAD ──────────────────────────── -->
+    <section class="section" id="step-load">
+      <div class="section-header">
+        <div class="section-tag" lang-en>Step 1</div>
+        <div class="section-tag" lang-th>ขั้นตอนที่ 1</div>
+        <h2 lang-en>Load BOQ Files</h2>
+        <h2 lang-th>โหลดไฟล์ BOQ</h2>
+        <p class="section-desc" lang-en>Select one or more BOQ Excel files to process.</p>
+        <p class="section-desc" lang-th>เลือกไฟล์ BOQ Excel ตั้งแต่หนึ่งไฟล์ขึ้นไปเพื่อประมวลผล</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-left"><div class="step-number">1</div><div class="step-line"></div></div>
+          <div class="step-body">
+            <div class="step-title" lang-en>Click "+ Add BOQ Files"</div>
+            <div class="step-title" lang-th>คลิก "+ เพิ่มไฟล์ BOQ"</div>
+            <p class="step-desc" lang-en>A file browser dialog will open. Navigate to your BOQ Excel files and select one or more files at once (hold <kbd>Ctrl</kbd> for multi-select).</p>
+            <p class="step-desc" lang-th>กล่องโต้ตอบเลือกไฟล์จะเปิดขึ้น ไปยังโฟลเดอร์ที่มีไฟล์ BOQ Excel แล้วเลือกไฟล์ได้ครั้งละหลายไฟล์ (กด <kbd>Ctrl</kbd> เพื่อเลือกหลายไฟล์)</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-left"><div class="step-number">2</div><div class="step-line"></div></div>
+          <div class="step-body">
+            <div class="step-title" lang-en>Wait for auto-detection</div>
+            <div class="step-title" lang-th>รอการตรวจจับอัตโนมัติ</div>
+            <p class="step-desc" lang-en>The app automatically reads your files and detects the column layout (door codes, product columns, pricing columns). The status bar shows "Parsing..." while this runs.</p>
+            <p class="step-desc" lang-th>โปรแกรมจะอ่านไฟล์และตรวจจับเลย์เอาต์คอลัมน์โดยอัตโนมัติ (รหัสประตู คอลัมน์สินค้า คอลัมน์ราคา) แถบสถานะจะแสดง "กำลังประมวลผล..." ระหว่างนี้</p>
+            <div class="step-tip" lang-en>💡 The config status will show <strong>"Auto-detected"</strong> if the app recognized your file structure, or <strong>"Using defaults"</strong> if it fell back to standard settings.</div>
+            <div class="step-tip" lang-th>💡 สถานะการตั้งค่าจะแสดง <strong>"ตรวจพบอัตโนมัติ"</strong> หากโปรแกรมรู้จักโครงสร้างไฟล์ หรือ <strong>"ใช้ค่าเริ่มต้น"</strong> หากใช้การตั้งค่ามาตรฐาน</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-left"><div class="step-number">3</div></div>
+          <div class="step-body">
+            <div class="step-title" lang-en>Review the file list</div>
+            <div class="step-title" lang-th>ตรวจสอบรายการไฟล์</div>
+            <p class="step-desc" lang-en>Selected filenames appear in the file list box. The label above shows the file count. To remove all files, click <strong>Clear All</strong>.</p>
+            <p class="step-desc" lang-th>ชื่อไฟล์ที่เลือกจะแสดงในกล่องรายการ ป้ายกำกับด้านบนจะแสดงจำนวนไฟล์ หากต้องการลบไฟล์ทั้งหมด ให้คลิก <strong>ล้างทั้งหมด</strong></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ▸ STEP 2: SETTINGS ──────────────────────── -->
+    <section class="section" id="step-settings">
+      <div class="section-header">
+        <div class="section-tag" lang-en>Step 2</div>
+        <div class="section-tag" lang-th>ขั้นตอนที่ 2</div>
+        <h2 lang-en>Configure Settings</h2>
+        <h2 lang-th>ปรับการตั้งค่า</h2>
+        <p class="section-desc" lang-en>Adjust the project name, pricing options, and cell reference mappings if needed.</p>
+        <p class="section-desc" lang-th>ปรับชื่อโครงการ ตัวเลือกราคา และการแมปการอ้างอิงเซลล์ตามต้องการ</p>
+      </div>
+
+      <div class="card">
+        <h3 lang-en>Project Name</h3>
+        <h3 lang-th>ชื่อโครงการ</h3>
+        <p style="margin-top:8px;font-size:14px;color:var(--text-muted);" lang-en>
+          Type a project name in the text field. This name will appear as the title in the generated warehouse form. If left blank, the app uses the BOQ filename.
+        </p>
+        <p style="margin-top:8px;font-size:14px;color:var(--text-muted);" lang-th>
+          พิมพ์ชื่อโครงการในช่องข้อความ ชื่อนี้จะปรากฏเป็นหัวเรื่องในแบบฟอร์มคลังสินค้าที่สร้างขึ้น หากเว้นว่างไว้ โปรแกรมจะใช้ชื่อไฟล์ BOQ แทน
+        </p>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 lang-en>Pricing Options</h3>
+        <h3 lang-th>ตัวเลือกราคา</h3>
+        <table>
+          <thead>
+            <tr>
+              <th lang-en>Option</th><th lang-th>ตัวเลือก</th>
+              <th lang-en>Default</th><th lang-th>ค่าเริ่มต้น</th>
+              <th lang-en>What it does</th><th lang-th>ผลที่ได้</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong lang-en>Include Pricing</strong><strong lang-th>รวมราคา</strong></td>
+              <td><span class="badge badge-green" lang-en>ON</span><span class="badge badge-green" lang-th>เปิด</span></td>
+              <td lang-en>Adds NET price and discount columns to the output form.</td>
+              <td lang-th>เพิ่มคอลัมน์ราคา NET และส่วนลดในแบบฟอร์มผลลัพธ์</td>
+            </tr>
+            <tr>
+              <td><strong lang-en>Use UNIT Price</strong><strong lang-th>ใช้ราคาต่อหน่วย</strong></td>
+              <td><span class="badge badge-orange" lang-en>OFF</span><span class="badge badge-orange" lang-th>ปิด</span></td>
+              <td lang-en>When ON: uses raw Unit Price instead of the NET discounted price.</td>
+              <td lang-th>เมื่อเปิด: ใช้ราคาต่อหน่วยดิบแทนราคา NET ที่มีส่วนลด</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header">
+          <div class="card-icon icon-cyan">⚙️</div>
+          <div>
+            <h3 lang-en>Cell References (Advanced)</h3>
+            <h3 lang-th>การอ้างอิงเซลล์ (ขั้นสูง)</h3>
+            <p style="font-size:14px;color:var(--text-muted);margin-top:4px;" lang-en>Click <strong>"Cell References..."</strong> to open the configuration dialog. Use this only if auto-detection did not pick up the correct columns.</p>
+            <p style="font-size:14px;color:var(--text-muted);margin-top:4px;" lang-th>คลิก <strong>"อ้างอิงเซลล์..."</strong> เพื่อเปิดกล่องโต้ตอบการกำหนดค่า ใช้เฉพาะเมื่อการตรวจจับอัตโนมัติไม่ถูกต้อง</p>
+          </div>
+        </div>
+        <div class="alert alert-success" style="margin:0;">
+          <span class="alert-icon">✅</span>
+          <span lang-en>Most of the time, auto-detection works correctly and you do not need to open this dialog.</span>
+          <span lang-th>โดยส่วนใหญ่ การตรวจจับอัตโนมัติจะทำงานได้ถูกต้อง และไม่จำเป็นต้องเปิดกล่องโต้ตอบนี้</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ▸ STEP 3: PREVIEW ──────────────────────── -->
+    <section class="section" id="step-preview">
+      <div class="section-header">
+        <div class="section-tag" lang-en>Step 3</div>
+        <div class="section-tag" lang-th>ขั้นตอนที่ 3</div>
+        <h2 lang-en>Read the Preview</h2>
+        <h2 lang-th>อ่านตัวอย่างผลลัพธ์</h2>
+        <p class="section-desc" lang-en>The preview panel confirms what the app found in your files before you convert.</p>
+        <p class="section-desc" lang-th>แผงตัวอย่างยืนยันสิ่งที่โปรแกรมพบในไฟล์ของคุณก่อนการแปลง</p>
+      </div>
+
+      <div class="card">
+        <p style="font-size:14px;margin-bottom:16px;" lang-en>A healthy preview will show:</p>
+        <p style="font-size:14px;margin-bottom:16px;" lang-th>ตัวอย่างที่ถูกต้องจะแสดง:</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-left"><div class="step-number" style="background:var(--success);">✓</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title" lang-en>Config status — "Auto-detected" or "Custom config"</div>
+              <div class="step-title" lang-th>สถานะการตั้งค่า — "ตรวจพบอัตโนมัติ" หรือ "กำหนดเอง"</div>
+              <p class="step-desc" lang-en>Confirms which column layout was used.</p>
+              <p class="step-desc" lang-th>ยืนยันว่าใช้เลย์เอาต์คอลัมน์ใด</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-left"><div class="step-number" style="background:var(--success);">✓</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title" lang-en>Product categories — e.g. MIWA, BEST, HAFELE</div>
+              <div class="step-title" lang-th>หมวดหมู่สินค้า — เช่น MIWA, BEST, HAFELE</div>
+              <p class="step-desc" lang-en>Lists the brand/category groups found across all BOQ sheets.</p>
+              <p class="step-desc" lang-th>แสดงรายการกลุ่มแบรนด์/หมวดหมู่ที่พบในชีท BOQ ทั้งหมด</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-left"><div class="step-number" style="background:var(--success);">✓</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title" lang-en>Door types — e.g. D1, D2, SD1</div>
+              <div class="step-title" lang-th>ประเภทประตู — เช่น D1, D2, SD1</div>
+              <p class="step-desc" lang-en>All door codes found in both the BOQ sheets and the cover sheet.</p>
+              <p class="step-desc" lang-th>รหัสประตูทั้งหมดที่พบในชีท BOQ และใบปะหน้า</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-left"><div class="step-number" style="background:var(--success);">✓</div></div>
+            <div class="step-body">
+              <div class="step-title" lang-en>Quantity mapping — e.g. D1=5, D2=12</div>
+              <div class="step-title" lang-th>การแมปจำนวน — เช่น D1=5, D2=12</div>
+              <p class="step-desc" lang-en>The number of each door type, pulled from the <strong>ใบปะหน้า</strong> cover sheet.</p>
+              <p class="step-desc" lang-th>จำนวนของแต่ละประเภทประตู ดึงมาจากชีท <strong>ใบปะหน้า</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-danger" style="margin-top:16px;">
+        <span class="alert-icon">🚨</span>
+        <div>
+          <strong lang-en>If the preview shows errors or missing data:</strong>
+          <strong lang-th>หากตัวอย่างแสดงข้อผิดพลาดหรือข้อมูลหายไป:</strong>
+          <ul style="padding-left:18px;margin-top:6px;font-size:13px;line-height:2;">
+            <li lang-en>Verify the BOQ file includes a <strong>ใบปะหน้า</strong> sheet</li>
+            <li lang-th>ตรวจสอบว่าไฟล์ BOQ มีชีท <strong>ใบปะหน้า</strong></li>
+            <li lang-en>Open <strong>Cell References...</strong> and verify column assignments</li>
+            <li lang-th>เปิด <strong>อ้างอิงเซลล์...</strong> และตรวจสอบการกำหนดคอลัมน์</li>
+            <li lang-en>Check the status bar at the bottom for a more detailed error message</li>
+            <li lang-th>ตรวจสอบแถบสถานะด้านล่างสำหรับข้อความแสดงข้อผิดพลาดโดยละเอียด</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ▸ STEP 4: CONVERT ──────────────────────── -->
+    <section class="section" id="step-convert">
+      <div class="section-header">
+        <div class="section-tag" lang-en>Step 4</div>
+        <div class="section-tag" lang-th>ขั้นตอนที่ 4</div>
+        <h2 lang-en>Convert & Save</h2>
+        <h2 lang-th>แปลงและบันทึก</h2>
+        <p class="section-desc" lang-en>Generate the warehouse picking form Excel file.</p>
+        <p class="section-desc" lang-th>สร้างไฟล์ Excel แบบฟอร์มเบิกสินค้าคลังสินค้า</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-left"><div class="step-number">1</div><div class="step-line"></div></div>
+          <div class="step-body">
+            <div class="step-title" lang-en>Click "Convert to Warehouse Form"</div>
+            <div class="step-title" lang-th>คลิก "แปลงเป็นแบบฟอร์มคลังสินค้า"</div>
+            <p class="step-desc" lang-en>The large cyan button at the bottom right of the app. It will be enabled once files are loaded and parsed successfully.</p>
+            <p class="step-desc" lang-th>ปุ่มสีฟ้าขนาดใหญ่ที่ด้านล่างขวาของโปรแกรม จะเปิดใช้งานได้เมื่อโหลดและประมวลผลไฟล์สำเร็จแล้ว</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-left"><div class="step-number">2</div><div class="step-line"></div></div>
+          <div class="step-body">
+            <div class="step-title" lang-en>Choose a save location</div>
+            <div class="step-title" lang-th>เลือกที่บันทึกไฟล์</div>
+            <p class="step-desc" lang-en>A "Save As" dialog opens. Navigate to your desired folder and enter a filename. The output file will be saved as <strong>.xlsx</strong>.</p>
+            <p class="step-desc" lang-th>กล่องโต้ตอบ "บันทึกเป็น" จะเปิดขึ้น นำทางไปยังโฟลเดอร์ที่ต้องการและพิมพ์ชื่อไฟล์ ไฟล์ผลลัพธ์จะถูกบันทึกเป็น <strong>.xlsx</strong></p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-left"><div class="step-number">3</div></div>
+          <div class="step-body">
+            <div class="step-title" lang-en>File opens automatically</div>
+            <div class="step-title" lang-th>ไฟล์เปิดโดยอัตโนมัติ</div>
+            <p class="step-desc" lang-en>Once conversion is complete, the output Excel file will automatically open in Microsoft Excel. The status bar shows <strong>"Conversion complete!"</strong>.</p>
+            <p class="step-desc" lang-th>เมื่อการแปลงเสร็จสิ้น ไฟล์ Excel ผลลัพธ์จะเปิดขึ้นโดยอัตโนมัติใน Microsoft Excel แถบสถานะจะแสดง <strong>"การแปลงเสร็จสมบูรณ์!"</strong></p>
+            <div class="step-note" lang-en>⚠️ If Excel is not installed, the file is still saved correctly — you just need to open it manually.</div>
+            <div class="step-note" lang-th>⚠️ หากไม่ได้ติดตั้ง Excel ไฟล์ยังคงถูกบันทึกอย่างถูกต้อง เพียงแต่ต้องเปิดด้วยตนเอง</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;" class="card">
+        <h3 lang-en>Output File Structure</h3>
+        <h3 lang-th>โครงสร้างไฟล์ผลลัพธ์</h3>
+        <table style="margin-top:12px;">
+          <thead>
+            <tr>
+              <th lang-en>Row(s)</th><th lang-th>แถว</th>
+              <th lang-en>Content</th><th lang-th>เนื้อหา</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td lang-en>Project name and generation date</td>
+              <td lang-th>ชื่อโครงการและวันที่สร้าง</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td lang-en>Column headers (Product, Price/NET, Door codes, Total)</td>
+              <td lang-th>หัวคอลัมน์ (สินค้า, ราคา/NET, รหัสประตู, รวม)</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td lang-en>Category label (e.g. MIWA, BEST)</td>
+              <td lang-th>ป้ายหมวดหมู่ (เช่น MIWA, BEST)</td>
+            </tr>
+            <tr>
+              <td>5+</td>
+              <td lang-en>Product rows with quantities per door type</td>
+              <td lang-th>แถวสินค้าพร้อมจำนวนต่อประเภทประตู</td>
+            </tr>
+            <tr>
+              <td lang-en>Last rows</td><td lang-th>แถวสุดท้าย</td>
+              <td lang-en>Totals and summary per door type</td>
+              <td lang-th>ยอดรวมและสรุปต่อประเภทประตู</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- ▸ UI ELEMENTS ──────────────────────────── -->
+    <section class="section" id="ui-elements">
+      <div class="section-header">
+        <div class="section-tag" lang-en>Reference</div>
+        <div class="section-tag" lang-th>อ้างอิง</div>
+        <h2 lang-en>UI Elements Reference</h2>
+        <h2 lang-th>รายละเอียดส่วนประกอบ UI</h2>
+        <p class="section-desc" lang-en>Every button, label, and indicator explained.</p>
+        <p class="section-desc" lang-th>คำอธิบายของปุ่ม ป้ายกำกับ และตัวบ่งชี้ทุกส่วน</p>
+      </div>
+
+      <h3 style="margin-bottom:12px;" lang-en>Header Bar</h3>
+      <h3 style="margin-bottom:12px;" lang-th>แถบส่วนหัว</h3>
+      <div class="ui-grid">
+        <div class="ui-item">
+          <div class="ui-item-label"><span class="badge badge-cyan">TH ไทย</span> <span lang-en>Language Toggle</span><span lang-th>ปุ่มเปลี่ยนภาษา</span></div>
+          <div class="ui-item-desc" lang-en>Switches the app interface between Thai and English. Click to toggle.</div>
+          <div class="ui-item-desc" lang-th>สลับอินเทอร์เฟซโปรแกรมระหว่างภาษาไทยและอังกฤษ คลิกเพื่อสลับ</div>
+        </div>
+        <div class="ui-item">
+          <div class="ui-item-label">About <span lang-en>Button</span><span lang-th>ปุ่ม</span></div>
+          <div class="ui-item-desc" lang-en>Opens the About dialog showing version number, build date, and full changelog.</div>
+          <div class="ui-item-desc" lang-th>เปิดกล่องโต้ตอบ "เกี่ยวกับ" ที่แสดงหมายเลขเวอร์ชัน วันที่บิลด์ และประวัติการเปลี่ยนแปลงทั้งหมด</div>
+        </div>
+      </div>
+
+      <h3 style="margin:20px 0 12px;" lang-en>BOQ Files Section</h3>
+      <h3 style="margin:20px 0 12px;" lang-th>ส่วนไฟล์ BOQ</h3>
+      <div class="ui-grid">
+        <div class="ui-item">
+          <div class="ui-item-label"><span class="badge badge-cyan">+ <span lang-en>Add BOQ Files</span><span lang-th>เพิ่มไฟล์ BOQ</span></span></div>
+          <div class="ui-item-desc" lang-en>Opens a file dialog to select .xlsx BOQ files. Supports multi-select.</div>
+          <div class="ui-item-desc" lang-th>เปิดกล่องโต้ตอบเลือกไฟล์ .xlsx BOQ รองรับการเลือกหลายไฟล์พร้อมกัน</div>
+        </div>
+        <div class="ui-item">
+          <div class="ui-item-label"><span lang-en>Clear All</span><span lang-th>ล้างทั้งหมด</span></div>
+          <div class="ui-item-desc" lang-en>Removes all selected files from the list and resets the preview.</div>
+          <div class="ui-item-desc" lang-th>ลบไฟล์ที่เลือกทั้งหมดออกจากรายการและรีเซ็ตตัวอย่าง</div>
+        </div>
+        <div class="ui-item">
+          <div class="ui-item-label" lang-en>File Count Label</div>
+          <div class="ui-item-label" lang-th>ป้ายจำนวนไฟล์</div>
+          <div class="ui-item-desc" lang-en>Shows "No files selected" or "X files selected" above the file list.</div>
+          <div class="ui-item-desc" lang-th>แสดง "ไม่มีไฟล์ที่เลือก" หรือ "เลือก X ไฟล์" เหนือรายการไฟล์</div>
+        </div>
+        <div class="ui-item">
+          <div class="ui-item-label" lang-en>File List Box</div>
+          <div class="ui-item-label" lang-th>กล่องรายการไฟล์</div>
+          <div class="ui-item-desc" lang-en>Displays all selected filenames. Scroll to view if many files are loaded.</div>
+          <div class="ui-item-desc" lang-th>แสดงชื่อไฟล์ที่เลือกทั้งหมด เลื่อนดูหากมีไฟล์จำนวนมาก</div>
+        </div>
+      </div>
+
+      <h3 style="margin:20px 0 12px;" lang-en>Settings Section</h3>
+      <h3 style="margin:20px 0 12px;" lang-th>ส่วนการตั้งค่า</h3>
+      <div class="ui-grid">
+        <div class="ui-item">
+          <div class="ui-item-label" lang-en>Project Name field</div>
+          <div class="ui-item-label" lang-th>ช่องชื่อโครงการ</div>
+          <div class="ui-item-desc" lang-en>Free-text input. Sets the title on the output warehouse form.</div>
+          <div class="ui-item-desc" lang-th>ช่องข้อความ ตั้งค่าหัวเรื่องบนแบบฟอร์มคลังสินค้าผลลัพธ์</div>
+        </div>
+        <div class="ui-item">
+          <div class="ui-item-label" lang-en>Include Pricing checkbox</div>
+          <div class="ui-item-label" lang-th>ช่องทำเครื่องหมาย "รวมราคา"</div>
+          <div class="ui-item-desc" lang-en>Checked by default. Uncheck to omit all pricing columns from the output.</div>
+          <div class="ui-item-desc" lang-th>เลือกไว้ตามค่าเริ่มต้น ยกเลิกการเลือกเพื่อซ่อนคอลัมน์ราคาทั้งหมดจากผลลัพธ์</div>
+        </div>
+        <div class="ui-item">
+          <div class="ui-item-label" lang-en>Use UNIT Price checkbox</div>
+          <div class="ui-item-label" lang-th>ช่องทำเครื่องหมาย "ใช้ราคาต่อหน่วย"</div>
+          <div class="ui-item-desc" lang-en>Off by default. Turn on to use the raw unit price instead of NET (discounted) price.</div>
+          <div class="ui-item-desc" lang-th>ปิดตามค่าเริ่มต้น เปิดเพื่อใช้ราคาต่อหน่วยดิบแทนราคา NET (ที่มีส่วนลด)</div>
+        </div>
+        <div class="ui-item">
+          <div class="ui-item-label" lang-en>Combine door types into one sheet checkbox</div>
+          <div class="ui-item-label" lang-th>ช่องทำเครื่องหมาย "รวมประเภทประตูเป็นชีตเดียว"</div>
+          <div class="ui-item-desc" lang-en>Checked by default. When on, all door categories (Aluminium Door, Wood Door, Door, etc.) are combined into a single output sheet. Uncheck to split output into one sheet per category.</div>
+          <div class="ui-item-desc" lang-th>เลือกไว้ตามค่าเริ่มต้น เมื่อเปิด ประเภทประตูทั้งหมดจะรวมเป็นชีตเดียวในผลลัพธ์ ยกเลิกการเลือกเพื่อแยกผลลัพธ์เป็นหนึ่งชีตต่อหมวดหมู่</div>
+        </div>
+        <div class="ui-item">
+          <div class="ui-item-label"><span lang-en>Config Status indicator</span><span lang-th>ตัวบ่งชี้สถานะการตั้งค่า</span></div>
+          <div class="ui-item-desc" lang-en>Shows one of: <em>Auto-detected</em>, <em>Using defaults</em>, or <em>Custom config</em>.</div>
+          <div class="ui-item-desc" lang-th>แสดงหนึ่งในนี้: <em>ตรวจพบอัตโนมัติ</em>, <em>ใช้ค่าเริ่มต้น</em>, หรือ <em>กำหนดเอง</em></div>
+        </div>
+      </div>
+
+      <h3 style="margin:20px 0 12px;" lang-en>Action Bar (Bottom)</h3>
+      <h3 style="margin:20px 0 12px;" lang-th>แถบดำเนินการ (ด้านล่าง)</h3>
+      <div class="ui-grid">
+        <div class="ui-item">
+          <div class="ui-item-label" lang-en>Status Label</div>
+          <div class="ui-item-label" lang-th>ป้ายสถานะ</div>
+          <div class="ui-item-desc" lang-en>Shows: <em>Ready</em> | <em>Parsing...</em> | <em>Ready to convert</em> | <em>Converting...</em> | <em>Conversion complete!</em> | Error text</div>
+          <div class="ui-item-desc" lang-th>แสดง: <em>พร้อม</em> | <em>กำลังประมวลผล...</em> | <em>พร้อมแปลง</em> | <em>กำลังแปลง...</em> | <em>แปลงเสร็จสมบูรณ์!</em> | ข้อความแสดงข้อผิดพลาด</div>
+        </div>
+        <div class="ui-item">
+          <div class="ui-item-label" lang-en>Progress Bar</div>
+          <div class="ui-item-label" lang-th>แถบความคืบหน้า</div>
+          <div class="ui-item-desc" lang-en>Animated while parsing or converting. Resets to empty when idle.</div>
+          <div class="ui-item-desc" lang-th>เคลื่อนไหวขณะประมวลผลหรือแปลง รีเซ็ตเป็นว่างเมื่อไม่ทำงาน</div>
+        </div>
+        <div class="ui-item" style="grid-column:1/-1;">
+          <div class="ui-item-label"><span class="badge badge-cyan" lang-en>Convert to Warehouse Form</span><span class="badge badge-cyan" lang-th>แปลงเป็นแบบฟอร์มคลังสินค้า</span></div>
+          <div class="ui-item-desc" lang-en>Main action button. Enabled only when files are loaded and preview is valid. Opens "Save As" dialog, then generates and auto-opens the Excel output.</div>
+          <div class="ui-item-desc" lang-th>ปุ่มหลัก เปิดใช้งานเฉพาะเมื่อโหลดไฟล์แล้วและตัวอย่างถูกต้อง เปิดกล่องโต้ตอบ "บันทึกเป็น" จากนั้นสร้างและเปิดไฟล์ Excel ผลลัพธ์โดยอัตโนมัติ</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ▸ CELL REFERENCES ─────────────────────── -->
+    <section class="section" id="cell-refs">
+      <div class="section-header">
+        <div class="section-tag" lang-en>Advanced</div>
+        <div class="section-tag" lang-th>ขั้นสูง</div>
+        <h2 lang-en>Cell References Dialog</h2>
+        <h2 lang-th>กล่องโต้ตอบอ้างอิงเซลล์</h2>
+        <p class="section-desc" lang-en>
+          Manually map which Excel columns contain which data. Use this when the auto-detection produces incorrect results.
+        </p>
+        <p class="section-desc" lang-th>
+          แมปด้วยตนเองว่าคอลัมน์ Excel ใดมีข้อมูลประเภทใด ใช้เมื่อการตรวจจับอัตโนมัติให้ผลลัพธ์ที่ไม่ถูกต้อง
+        </p>
+      </div>
+
+      <img src="pictures/Cell References.png" alt="Cell References Configuration dialog" style="width:100%;max-width:720px;border-radius:var(--radius);box-shadow:var(--shadow-md);display:block;margin:0 auto;" />
+
+      <div style="margin-top:24px;">
+        <h3 lang-en>BOQ Sheet Tab — Fields</h3>
+        <h3 lang-th>แท็บชีท BOQ — ฟิลด์</h3>
+        <table style="margin-top:12px;">
+          <thead>
+            <tr>
+              <th lang-en>Field</th><th lang-th>ฟิลด์</th>
+              <th lang-en>Description</th><th lang-th>คำอธิบาย</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td lang-en>Door Codes Column</td><td lang-th>คอลัมน์รหัสประตู</td>
+              <td lang-en>Column letter containing door type codes (e.g. D1, D2, SD1)</td>
+              <td lang-th>ตัวอักษรคอลัมน์ที่มีรหัสประเภทประตู (เช่น D1, D2, SD1)</td>
+            </tr>
+            <tr>
+              <td lang-en>Starting Row</td><td lang-th>แถวเริ่มต้น</td>
+              <td lang-en>Row number where data begins (skipping header rows)</td>
+              <td lang-th>หมายเลขแถวที่ข้อมูลเริ่มต้น (ข้ามแถวหัวตาราง)</td>
+            </tr>
+            <tr>
+              <td lang-en>Room Name Column</td><td lang-th>คอลัมน์ชื่อห้อง</td>
+              <td lang-en>Column with room or location descriptions</td>
+              <td lang-th>คอลัมน์ที่มีชื่อห้องหรือสถานที่</td>
+            </tr>
+            <tr>
+              <td lang-en>Brand Column</td><td lang-th>คอลัมน์แบรนด์</td>
+              <td lang-en>Column with product brand/manufacturer name</td>
+              <td lang-th>คอลัมน์ที่มีชื่อแบรนด์/ผู้ผลิตสินค้า</td>
+            </tr>
+            <tr>
+              <td lang-en>Model Column</td><td lang-th>คอลัมน์รุ่น</td>
+              <td lang-en>Column with product model or part number</td>
+              <td lang-th>คอลัมน์ที่มีรุ่นสินค้าหรือหมายเลขชิ้นส่วน</td>
+            </tr>
+            <tr>
+              <td lang-en>Description Column</td><td lang-th>คอลัมน์คำอธิบาย</td>
+              <td lang-en>Column with product description text</td>
+              <td lang-th>คอลัมน์ที่มีข้อความคำอธิบายสินค้า</td>
+            </tr>
+            <tr>
+              <td lang-en>Quantity Column</td><td lang-th>คอลัมน์จำนวน</td>
+              <td lang-en>Column with quantity per door type</td>
+              <td lang-th>คอลัมน์ที่มีจำนวนต่อประเภทประตู</td>
+            </tr>
+            <tr>
+              <td lang-en>Unit Price Column</td><td lang-th>คอลัมน์ราคาต่อหน่วย</td>
+              <td lang-en>Column with the raw (non-discounted) unit price</td>
+              <td lang-th>คอลัมน์ที่มีราคาต่อหน่วยดิบ (ยังไม่มีส่วนลด)</td>
+            </tr>
+            <tr>
+              <td lang-en>NET Indicator Column</td><td lang-th>คอลัมน์ตัวบ่งชี้ NET</td>
+              <td lang-en>Column that marks whether the price is NET (discounted)</td>
+              <td lang-th>คอลัมน์ที่ระบุว่าราคาเป็น NET (มีส่วนลด) หรือไม่</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:24px;">
+        <h3 lang-en>Cover Sheet (ใบปะหน้า) Tab — Fields</h3>
+        <h3 lang-th>แท็บใบปะหน้า — ฟิลด์</h3>
+        <table style="margin-top:12px;">
+          <thead>
+            <tr>
+              <th lang-en>Field</th><th lang-th>ฟิลด์</th>
+              <th lang-en>Description</th><th lang-th>คำอธิบาย</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td lang-en>Door Code Column</td><td lang-th>คอลัมน์รหัสประตู</td>
+              <td lang-en>Column with door type codes on the cover sheet</td>
+              <td lang-th>คอลัมน์ที่มีรหัสประเภทประตูในใบปะหน้า</td>
+            </tr>
+            <tr>
+              <td lang-en>Room Name Column</td><td lang-th>คอลัมน์ชื่อห้อง</td>
+              <td lang-en>Column with room names on the cover sheet</td>
+              <td lang-th>คอลัมน์ที่มีชื่อห้องในใบปะหน้า</td>
+            </tr>
+            <tr>
+              <td lang-en>Quantity Column</td><td lang-th>คอลัมน์จำนวน</td>
+              <td lang-en>Column with total quantities per door type</td>
+              <td lang-th>คอลัมน์ที่มีจำนวนรวมต่อประเภทประตู</td>
+            </tr>
+            <tr>
+              <td lang-en>Data Starting Row</td><td lang-th>แถวเริ่มต้นข้อมูล</td>
+              <td lang-en>Row where data starts on the cover sheet</td>
+              <td lang-th>แถวที่ข้อมูลเริ่มต้นในใบปะหน้า</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-info" style="margin-top:20px;">
+        <span class="alert-icon">💡</span>
+        <span lang-en>After changing any field, click <strong>"Save &amp; Re-parse"</strong> to apply and immediately see the updated preview. The config status indicator will change to <strong>"Custom config"</strong>.</span>
+        <span lang-th>หลังจากเปลี่ยนฟิลด์ใดก็ตาม ให้คลิก <strong>"บันทึกและประมวลผลใหม่"</strong> เพื่อนำไปใช้และดูตัวอย่างที่อัปเดต ตัวบ่งชี้สถานะการตั้งค่าจะเปลี่ยนเป็น <strong>"กำหนดเอง"</strong></span>
+      </div>
+    </section>
+
+    <!-- ▸ FAQ ──────────────────────────────────── -->
+    <section class="section" id="faq">
+      <div class="section-header">
+        <div class="section-tag">FAQ</div>
+        <h2 lang-en>Frequently Asked Questions</h2>
+        <h2 lang-th>คำถามที่พบบ่อย</h2>
+      </div>
+
+      <!-- English FAQs -->
+      <div lang-en>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>Why does the preview show no door types?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            The BOQ sheet may use a different column for door codes than expected. Open <strong>Cell References...</strong> → BOQ Sheet tab → and check the <strong>Door Codes Column</strong> value. Use the visual grid to click the correct column header.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>The quantity mapping shows "0" for all door types. What's wrong?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            This usually means the <strong>ใบปะหน้า</strong> cover sheet is missing or the cover sheet column references are incorrect. Check that your file has a sheet named exactly <strong>"ใบปะหน้า"</strong>, then open Cell References → Cover Sheet tab to verify the column assignments.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>Can I process multiple BOQ files at once?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            Yes. Click <strong>"+ Add BOQ Files"</strong> and select multiple <em>.xlsx</em> files (hold <kbd>Ctrl</kbd> to multi-select). All files will be combined into one warehouse form output.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>What's the difference between "Include Pricing" and "Use UNIT Price"?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            <strong>Include Pricing</strong> controls whether any price columns appear in the output at all.<br><br>
+            <strong>Use UNIT Price</strong> (only relevant when pricing is included) controls <em>which</em> price to use: if checked, it shows the raw unit price; if unchecked, it shows the NET discounted price.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>What does "OPTION" labeling mean in the output?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            Products found under "OPTION" sections in the BOQ are marked in column A of the warehouse form. This helps warehouse staff distinguish optional items from standard-specified items.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>The output Excel file didn't open automatically. What should I do?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            The file was still saved correctly. Check the folder you selected in the "Save As" dialog and open the <em>.xlsx</em> file manually. The auto-open feature requires Microsoft Excel to be installed and set as the default application for <em>.xlsx</em> files.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>How do I reset to auto-detected settings after using custom cell references?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            Remove all files using <strong>Clear All</strong>, then re-add your BOQ files. The app will re-run auto-detection fresh on each file load.
+          </div>
+        </div>
+      </div>
+
+      <!-- Thai FAQs -->
+      <div lang-th>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>ทำไมตัวอย่างไม่แสดงประเภทประตู?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            ชีท BOQ อาจใช้คอลัมน์ที่แตกต่างจากที่คาดไว้สำหรับรหัสประตู เปิด <strong>อ้างอิงเซลล์...</strong> → แท็บชีท BOQ → และตรวจสอบค่า <strong>คอลัมน์รหัสประตู</strong> ใช้กริดภาพเพื่อคลิกหัวคอลัมน์ที่ถูกต้อง
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>การแมปจำนวนแสดง "0" สำหรับประเภทประตูทั้งหมด เกิดอะไรขึ้น?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            โดยปกติหมายความว่าชีท <strong>ใบปะหน้า</strong> หายไปหรือการอ้างอิงคอลัมน์ใบปะหน้าไม่ถูกต้อง ตรวจสอบว่าไฟล์ของคุณมีชีทชื่อ <strong>"ใบปะหน้า"</strong> พอดี จากนั้นเปิดอ้างอิงเซลล์ → แท็บใบปะหน้า เพื่อตรวจสอบการกำหนดคอลัมน์
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>สามารถประมวลผลไฟล์ BOQ หลายไฟล์พร้อมกันได้ไหม?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            ได้ คลิก <strong>"+ เพิ่มไฟล์ BOQ"</strong> และเลือกไฟล์ <em>.xlsx</em> หลายไฟล์ (กด <kbd>Ctrl</kbd> เพื่อเลือกหลายไฟล์) ไฟล์ทั้งหมดจะถูกรวมเป็นแบบฟอร์มคลังสินค้าเดียว
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>"รวมราคา" และ "ใช้ราคาต่อหน่วย" ต่างกันอย่างไร?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            <strong>รวมราคา</strong> ควบคุมว่าคอลัมน์ราคาจะปรากฏในผลลัพธ์หรือไม่<br><br>
+            <strong>ใช้ราคาต่อหน่วย</strong> (ใช้ได้เฉพาะเมื่อรวมราคา) ควบคุมว่าจะใช้ราคา<em>ใด</em>: หากเลือก จะแสดงราคาต่อหน่วยดิบ หากไม่เลือก จะแสดงราคา NET ที่มีส่วนลด
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>การติดป้าย "OPTION" ในผลลัพธ์หมายความว่าอะไร?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            สินค้าที่พบในส่วน "OPTION" ของ BOQ จะถูกทำเครื่องหมายในคอลัมน์ A ของแบบฟอร์มคลังสินค้า ช่วยให้เจ้าหน้าที่คลังสินค้าแยกแยะสินค้าเพิ่มเติมจากสินค้ามาตรฐานที่ระบุไว้
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>ไฟล์ Excel ผลลัพธ์ไม่เปิดโดยอัตโนมัติ ต้องทำอย่างไร?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            ไฟล์ยังคงถูกบันทึกอย่างถูกต้อง ตรวจสอบโฟลเดอร์ที่คุณเลือกในกล่องโต้ตอบ "บันทึกเป็น" และเปิดไฟล์ <em>.xlsx</em> ด้วยตนเอง คุณลักษณะการเปิดอัตโนมัติต้องการให้ติดตั้ง Microsoft Excel และตั้งค่าเป็นแอปพลิเคชันเริ่มต้นสำหรับไฟล์ <em>.xlsx</em>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>จะรีเซ็ตเป็นการตั้งค่าที่ตรวจพบอัตโนมัติหลังจากใช้การอ้างอิงเซลล์แบบกำหนดเองได้อย่างไร?</span><span class="arrow">▼</span>
+          </button>
+          <div class="faq-a">
+            ลบไฟล์ทั้งหมดโดยใช้ <strong>ล้างทั้งหมด</strong> จากนั้นเพิ่มไฟล์ BOQ ของคุณใหม่ โปรแกรมจะรันการตรวจจับอัตโนมัติใหม่ทุกครั้งที่โหลดไฟล์
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div style="text-align:center;color:var(--text-light);font-size:12px;padding:32px 0 48px;">
+      <span lang-en>BOQ to Warehouse Form · v1.1.0 · Today Style 2100 Co., Ltd.</span>
+      <span lang-th>BOQ to Warehouse Form · v1.1.0 · บริษัท Today Style 2100 จำกัด</span>
+    </div>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════════════ -->
+<script>
+  /* ── Language toggle ─────────────────────────── */
+  let currentLang = 'th';
+  document.body.classList.add('lang-th');
+  function toggleLang() {
+    currentLang = currentLang === 'en' ? 'th' : 'en';
+    document.body.classList.toggle('lang-en', currentLang === 'en');
+    document.body.classList.toggle('lang-th', currentLang === 'th');
+    document.getElementById('langBtnLabel').textContent =
+      currentLang === 'en' ? 'ภาษาไทย' : 'English';
+    document.querySelector('.site-header').querySelector('.header-subtitle').textContent =
+      currentLang === 'en'
+        ? 'User Guide · Today Style 2100 Co., Ltd.'
+        : 'คู่มือการใช้งาน · บริษัท Today Style 2100 จำกัด';
+  }
+
+  /* ── FAQ accordion ───────────────────────────── */
+  function toggleFaq(btn) {
+    const answer = btn.nextElementSibling;
+    const isOpen = answer.classList.contains('open');
+    // Close all in same parent container
+    const container = btn.closest('div[lang-en], div[lang-th]') || document;
+    container.querySelectorAll('.faq-q').forEach(b => {
+      b.classList.remove('open');
+      b.nextElementSibling.classList.remove('open');
+    });
+    if (!isOpen) {
+      btn.classList.add('open');
+      answer.classList.add('open');
+    }
+  }
+
+  /* ── Active sidebar link on scroll ──────────── */
+  const sections = document.querySelectorAll('.section');
+  const navLinks = document.querySelectorAll('.nav-link');
+
+  function onScroll() {
+    let current = '';
+    sections.forEach(sec => {
+      const top = sec.getBoundingClientRect().top;
+      if (top <= 100) current = sec.id;
+    });
+    navLinks.forEach(link => {
+      link.classList.toggle(
+        'active',
+        link.getAttribute('href') === '#' + current
+      );
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+</body>
+</html>
