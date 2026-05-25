@@ -127,3 +127,20 @@ create or replace view conversions_latest as
 -- from conversions
 -- where project_name = 'XYZ Hotel' and project_category = 'Hotel'
 -- order by created_at desc;
+
+-- ─── Brand usage aggregate view (for Lark CRM v1.3 dashboard sync) ───────────
+-- Run this in Supabase SQL Editor before using lark_brand_usage_sync.py
+create or replace view v_brand_usage_by_project as
+  select c.project_name,
+         c.project_category,
+         i.brand,
+         i.model,
+         count(*)::int       as times_specified,
+         sum(i.quantity)::numeric as total_qty
+  from conversion_items i
+  join conversions_latest c on c.id = i.conversion_id
+  where i.is_option = false
+    and coalesce(i.brand, '') <> ''
+  group by c.project_name, c.project_category, i.brand, i.model;
+
+grant select on v_brand_usage_by_project to anon;

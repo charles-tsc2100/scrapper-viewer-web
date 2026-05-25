@@ -28,6 +28,7 @@ from i18n import t, get_lang, set_lang, on_lang_change
 from version import APP_VERSION, APP_BUILD_DATE, CHANGELOG
 import theme as T
 import db_logger
+from tools.lark_sync import sync_lark_to_supabase
 
 PROJECT_TYPES = [
     "Commercial", "Data Center", "Education", "Government",
@@ -527,6 +528,16 @@ class BOQConverterApp:
         self._project_picker.bind("<FocusIn>",  self._on_picker_focus_in)
         self._project_picker.bind("<FocusOut>", self._on_picker_focus_out)
 
+        self._refresh_btn = tk.Button(
+            picker_frame, text=t("refresh_lark_btn"),
+            font=T.get_font("body", T.SIZE_BODY_SM),
+            bg=T.SURFACE, fg=T.TEXT_SECONDARY,
+            activebackground=T.SURFACE_LOW, activeforeground=T.PRIMARY,
+            borderwidth=1, relief="solid",
+            cursor="hand2",
+            command=self._refresh_from_lark)
+        self._refresh_btn.pack(anchor="e", pady=(T.SPACE_2, 0))
+
         # ── Project category ──
         cat_frame = tk.Frame(card, bg=T.SURFACE_LOW)
         cat_frame.pack(fill=tk.X, pady=(0, T.SPACE_3))
@@ -673,12 +684,15 @@ class BOQConverterApp:
             fg=T.TEXT_SECONDARY, bg=T.SURFACE_LOW)
         self.status_label.pack(side=tk.LEFT)
 
+        self._lark_sync_label = tk.Label(
+            status_block, text="",
+            font=T.get_font("label", T.SIZE_LABEL_SM),
+            fg=T.TEXT_TERTIARY, bg=T.SURFACE_LOW)
+        self._lark_sync_label.pack(side=tk.LEFT, padx=(T.SPACE_4, 0))
+
         # Right: progress + convert button
         action_right = tk.Frame(bar, bg=T.SURFACE_LOW)
         action_right.pack(side=tk.RIGHT)
-
-        self.progress = ttk.Progressbar(action_right, mode="indeterminate", length=140)
-        self.progress.pack(side=tk.LEFT, padx=(0, T.SPACE_3))
 
         self.convert_btn = tk.Button(
             action_right, text=t("convert_btn"),
@@ -846,6 +860,36 @@ class BOQConverterApp:
         self._picker_showing_placeholder = True
         self._project_picker.configure(foreground=T.TEXT_TERTIARY)
 
+    def _refresh_from_lark(self):
+        self._refresh_btn.config(state="disabled")
+        self.status_label.config(text=t("refreshing_lark_status"), fg=T.WARNING)
+        self._action_dot.itemconfig("dot", fill=T.WARNING)
+
+        def worker():
+            try:
+                result = sync_lark_to_supabase()
+                projects = db_logger.fetch_projects()
+                self.root.after(0, lambda: self._on_refresh_done(result, projects, None))
+            except BaseException as exc:
+                self.root.after(0, lambda e=exc: self._on_refresh_done(None, None, e))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_refresh_done(self, result, projects, error):
+        self._refresh_btn.config(state="normal")
+        if error:
+            self.status_label.config(text=t("refresh_failed_status"), fg=T.ERROR)
+            self._action_dot.itemconfig("dot", fill=T.ERROR)
+            from tkinter import messagebox
+            messagebox.showerror(t("refresh_error_title"), str(error))
+        else:
+            upserted = result.get("upserted", 0)
+            pruned = result.get("pruned", 0)
+            msg = t("refresh_done_status").format(upserted=upserted, pruned=pruned)
+            self.status_label.config(text=msg, fg=T.SUCCESS)
+            self._action_dot.itemconfig("dot", fill=T.SUCCESS)
+            self._apply_projects(projects)
+
     def _on_picker_focus_in(self, _event=None):
         if self._picker_showing_placeholder:
             self._project_picker_var.set("")
@@ -932,7 +976,6 @@ class BOQConverterApp:
     def _parse_preview(self):
         self.status_label.config(text=t("parsing_status"), fg=T.INFO)
         self._action_dot.itemconfig("dot", fill=T.INFO)
-        self.progress.start()
         config = self.config
 
         def do_parse():
@@ -1001,8 +1044,6 @@ class BOQConverterApp:
                     text=t("parse_error"), fg=T.ERROR))
                 self.root.after(0, lambda: self._action_dot.itemconfig("dot", fill=T.ERROR))
 
-            self.root.after(0, self.progress.stop)
-
         threading.Thread(target=do_parse, daemon=True).start()
 
     def _update_preview(self, text):
@@ -1039,7 +1080,6 @@ class BOQConverterApp:
 
         self.status_label.config(text=t("generating_status"), fg=T.INFO)
         self._action_dot.itemconfig("dot", fill=T.INFO)
-        self.progress.start()
         self.convert_btn.config(state=tk.DISABLED)
 
         def do_convert():
@@ -1081,6 +1121,9 @@ class BOQConverterApp:
                     text=t("saved_status", filename=os.path.basename(output_path)),
                     fg=T.SUCCESS))
                 self.root.after(0, lambda: self._action_dot.itemconfig("dot", fill=T.SUCCESS))
+                self.root.after(0, lambda: self._lark_sync_label.config(
+                    text="Lark: syncing…", fg=T.TEXT_TERTIARY))
+                self.root.after(12000, self._check_lark_sync_status)
                 self.root.after(0, lambda: messagebox.showinfo(
                     t("success_title"),
                     t("success_msg", path=output_path, count=len(self.parsed_categories))))
@@ -1099,10 +1142,24 @@ class BOQConverterApp:
                 self.root.after(0, lambda: messagebox.showerror(
                     t("error_title"), t("error_msg", error=str(e))))
 
-            self.root.after(0, self.progress.stop)
             self.root.after(0, lambda: self.convert_btn.config(state=tk.NORMAL))
 
         threading.Thread(target=do_convert, daemon=True).start()
+
+    def _check_lark_sync_status(self):
+        status = db_logger._lark_brand_sync_status
+        if status["ok"] is None:
+            return  # sync hasn't run yet (Lark not configured)
+        if status["ok"]:
+            try:
+                ts = status["time"][:16].replace("T", " ")  # "YYYY-MM-DD HH:MM"
+            except Exception:
+                ts = status["time"]
+            self._lark_sync_label.config(
+                text=f"Lark dashboard: updated {ts}", fg=T.SUCCESS)
+        else:
+            self._lark_sync_label.config(
+                text="Lark dashboard: sync failed — see log", fg=T.ERROR)
 
     # ─────────────────────────────────────────────────────────
     # ERROR LOG VIEWER

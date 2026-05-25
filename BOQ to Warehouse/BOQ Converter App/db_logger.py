@@ -20,6 +20,9 @@ from datetime import datetime
 
 logger = logging.getLogger("boq_converter")
 
+# Updated by _upload() after each Lark brand-usage sync. Read by app.py to show status.
+_lark_brand_sync_status: dict = {"ok": None, "time": None, "error": None}
+
 APPDATA = os.environ.get("APPDATA", os.path.expanduser("~"))
 CONFIG_DIR = os.path.join(APPDATA, "BOQConverter")
 DB_CONFIG_FILE = os.path.join(CONFIG_DIR, "db_config.json")
@@ -219,6 +222,27 @@ def _upload(url, anon_key, conversion, items):
     except Exception as e:
         logger.warning("db_logger: upload failed, queuing locally: %s", e)
         _save_pending({"conversion": conversion, "items": items})
+        return  # skip Lark sync if Supabase upload failed (data not yet available)
+
+    # Push updated aggregates to Lark Base CRM v1.3 (non-blocking; never raises)
+    _trigger_lark_brand_sync()
+
+
+def _trigger_lark_brand_sync():
+    try:
+        from tools.lark_brand_usage_sync import sync_brand_usage_to_lark
+        result = sync_brand_usage_to_lark()
+        _lark_brand_sync_status.update({
+            "ok": True,
+            "time": datetime.utcnow().isoformat() + "Z",
+            "error": None,
+        })
+        logger.info("db_logger: lark brand usage sync ok — inserted=%d deleted=%d took=%dms",
+                    result.get("inserted", 0), result.get("deleted", 0), result.get("took_ms", 0))
+    except Exception as e:
+        _lark_brand_sync_status.update({"ok": False, "time": datetime.utcnow().isoformat() + "Z",
+                                        "error": str(e)})
+        logger.warning("db_logger: lark brand usage sync failed: %s", e)
 
 
 def log_conversion(project_name, categories, source_files,
