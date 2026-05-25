@@ -40,9 +40,11 @@ FIELD_MAP = {
     "project_category": "project_category",
     "brand":            "brand",
     "model":            "model",
+    "description":      "description",
     "times_specified":  "times_specified",
     "total_qty":        "total_qty",
     "last_updated":     "last_updated",
+    "project_link":     "project_link",
 }
 
 # Fields that are Single-Select in Lark and need option pre-provisioning
@@ -176,6 +178,50 @@ def _ensure_select_options(token, app_token, table_id, fields_meta, rows):
     return total_added
 
 
+# ── Sale Projects map ─────────────────────────────────────────────────────────
+
+def _build_project_name_map(token, lark_cfg):
+    """Return {project_name: record_id} from the Sale Projects table."""
+    app_token = lark_cfg["base_app_token"]
+    table_id = lark_cfg.get("table_id")
+    if not table_id:
+        raise RuntimeError(
+            "lark_config.json is missing 'table_id' (Sale Projects table). "
+            "Run setup_lark_config.bat to add it.")
+    name_field = (lark_cfg.get("field_map") or {}).get("name", "Project Name")
+
+    name_map = {}
+    page_token = None
+    while True:
+        params = {"page_size": 500, "field_names": f'["{name_field}"]'}
+        if page_token:
+            params["page_token"] = page_token
+        r = requests.get(
+            f"{LARK_HOST}/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records",
+            headers={"Authorization": f"Bearer {token}"},
+            params=params,
+            timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if data.get("code") != 0:
+            raise RuntimeError(f"Lark list_records (Sale Projects) failed: {data}")
+        for rec in data["data"].get("items", []):
+            name_val = rec.get("fields", {}).get(name_field)
+            if isinstance(name_val, list):
+                name_val = "".join(
+                    seg.get("text", "") for seg in name_val if isinstance(seg, dict))
+            if name_val:
+                name_map[str(name_val).strip()] = rec["record_id"]
+        if not data["data"].get("has_more"):
+            break
+        page_token = data["data"].get("page_token")
+        if not page_token:
+            break
+    log.info("Loaded %d Sale Project name→record_id mappings", len(name_map))
+    return name_map
+
+
 # ── Supabase read ─────────────────────────────────────────────────────────────
 
 def _fetch_supabase_rows(db_cfg):
@@ -197,11 +243,20 @@ def _fetch_supabase_rows(db_cfg):
 
 # ── Lark record write ─────────────────────────────────────────────────────────
 
-def _list_all_record_ids(token, app_token, table_id):
-    ids = []
+# Fields read back from Lark to drive the diff comparison
+_KEY_FIELDS = ["project_name", "brand", "model"]
+_CMP_FIELDS = ["project_category", "description", "times_specified", "total_qty"]
+
+
+def _list_all_records(token, app_token, table_id):
+    """Return list of {record_id, fields} dicts with key+comparison fields."""
+    fetch_names = [FIELD_MAP[k] for k in _KEY_FIELDS + _CMP_FIELDS]
+    field_names_param = json.dumps(fetch_names)
+
+    records = []
     page_token = None
     while True:
-        params = {"page_size": 500}
+        params = {"page_size": 500, "field_names": field_names_param}
         if page_token:
             params["page_token"] = page_token
         r = requests.get(
@@ -215,13 +270,86 @@ def _list_all_record_ids(token, app_token, table_id):
         if data.get("code") != 0:
             raise RuntimeError(f"Lark list_records failed: {data}")
         for rec in data["data"].get("items", []):
-            ids.append(rec["record_id"])
+            records.append({"record_id": rec["record_id"], "fields": rec.get("fields", {})})
         if not data["data"].get("has_more"):
             break
         page_token = data["data"].get("page_token")
         if not page_token:
             break
-    return ids
+    return records
+
+
+def _extract_text(val):
+    """Extract plain text from a Lark field value (text, list of segments, or select)."""
+    if val is None:
+        return ""
+    if isinstance(val, str):
+        return val.strip()
+    if isinstance(val, list):
+        return "".join(
+            seg.get("text", "") if isinstance(seg, dict) else str(seg) for seg in val
+        ).strip()
+    if isinstance(val, dict):
+        return (val.get("text") or val.get("value") or val.get("name") or "").strip()
+    return str(val).strip()
+
+
+def _row_key(row):
+    return (
+        (row.get("project_name") or "").strip(),
+        (row.get("brand") or "").strip(),
+        (row.get("model") or "").strip(),
+    )
+
+
+def _lark_rec_key(fields):
+    return (
+        _extract_text(fields.get(FIELD_MAP["project_name"])),
+        _extract_text(fields.get(FIELD_MAP["brand"])),
+        _extract_text(fields.get(FIELD_MAP["model"])),
+    )
+
+
+def _rows_differ(row, fields):
+    """True if any comparison field has changed between Supabase row and Lark fields."""
+    if _extract_text(fields.get(FIELD_MAP["project_category"])) != (row.get("project_category") or ""):
+        return True
+    if _extract_text(fields.get(FIELD_MAP["description"])) != (row.get("description") or ""):
+        return True
+    try:
+        lark_ts = int(fields.get(FIELD_MAP["times_specified"]) or 0)
+    except (TypeError, ValueError):
+        lark_ts = 0
+    if lark_ts != int(row.get("times_specified") or 0):
+        return True
+    try:
+        lark_qty = float(fields.get(FIELD_MAP["total_qty"]) or 0)
+    except (TypeError, ValueError):
+        lark_qty = 0.0
+    if abs(lark_qty - float(row.get("total_qty") or 0)) > 0.0001:
+        return True
+    return False
+
+
+def _build_fields(row, now_ms, project_name_map=None):
+    pname = (row.get("project_name") or "").strip()
+    fields = {
+        FIELD_MAP["project_name"]:     pname,
+        FIELD_MAP["project_category"]: row.get("project_category") or "",
+        FIELD_MAP["brand"]:            row.get("brand") or "",
+        FIELD_MAP["model"]:            row.get("model") or "",
+        FIELD_MAP["description"]:      row.get("description") or "",
+        FIELD_MAP["times_specified"]:  int(row.get("times_specified") or 0),
+        FIELD_MAP["total_qty"]:        float(row.get("total_qty") or 0),
+        FIELD_MAP["last_updated"]:     now_ms,
+    }
+    linked = False
+    if project_name_map is not None:
+        rec_id = project_name_map.get(pname)
+        if rec_id:
+            fields[FIELD_MAP["project_link"]] = [rec_id]  # one-way link: list of record_id strings
+            linked = True
+    return fields, linked
 
 
 def _batch_delete(token, app_token, table_id, record_ids):
@@ -243,21 +371,17 @@ def _batch_delete(token, app_token, table_id, record_ids):
     return deleted
 
 
-def _batch_create(token, app_token, table_id, rows, now_ms):
+def _batch_create(token, app_token, table_id, rows, now_ms, project_name_map=None):
     created = 0
+    unlinked = []
     for i in range(0, len(rows), 500):
         chunk = rows[i:i + 500]
         records = []
         for row in chunk:
-            records.append({"fields": {
-                FIELD_MAP["project_name"]:     row.get("project_name") or "",
-                FIELD_MAP["project_category"]: row.get("project_category") or "",
-                FIELD_MAP["brand"]:            row.get("brand") or "",
-                FIELD_MAP["model"]:            row.get("model") or "",
-                FIELD_MAP["times_specified"]:  int(row.get("times_specified") or 0),
-                FIELD_MAP["total_qty"]:        float(row.get("total_qty") or 0),
-                FIELD_MAP["last_updated"]:     now_ms,
-            }})
+            fields, linked = _build_fields(row, now_ms, project_name_map)
+            if not linked and project_name_map is not None:
+                unlinked.append((row.get("project_name") or "").strip())
+            records.append({"fields": fields})
         r = requests.post(
             f"{LARK_HOST}/open-apis/bitable/v1/apps/{app_token}"
             f"/tables/{table_id}/records/batch_create",
@@ -270,15 +394,47 @@ def _batch_create(token, app_token, table_id, rows, now_ms):
         if data.get("code") != 0:
             raise RuntimeError(f"Lark batch_create failed: {data}")
         created += len(chunk)
-    return created
+    if unlinked:
+        log.warning(
+            "%d row(s) have no matching Sale Project and will have an empty project_link: %s",
+            len(unlinked), sorted(set(unlinked))[:20])
+    return created, unlinked
+
+
+def _batch_update(token, app_token, table_id, updates, now_ms, project_name_map=None):
+    """updates: list of (record_id, supabase_row)"""
+    updated = 0
+    unlinked = []
+    for i in range(0, len(updates), 500):
+        chunk = updates[i:i + 500]
+        records = []
+        for record_id, row in chunk:
+            fields, linked = _build_fields(row, now_ms, project_name_map)
+            if not linked and project_name_map is not None:
+                unlinked.append((row.get("project_name") or "").strip())
+            records.append({"record_id": record_id, "fields": fields})
+        r = requests.post(
+            f"{LARK_HOST}/open-apis/bitable/v1/apps/{app_token}"
+            f"/tables/{table_id}/records/batch_update",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"records": records},
+            timeout=30,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if data.get("code") != 0:
+            raise RuntimeError(f"Lark batch_update failed: {data}")
+        updated += len(chunk)
+    return updated, unlinked
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 def sync_brand_usage_to_lark(dry_run=False) -> dict:
     """
-    Pull brand/model aggregates from Supabase and push to Lark Base.
-    Returns {deleted, inserted, options_added, took_ms}.
+    Pull brand/model aggregates from Supabase and diff-sync to Lark Base.
+    Uses create-then-delete ordering so an interruption never empties the table.
+    Returns {deleted, inserted, updated, options_added, unlinked, took_ms}.
     Raises on config or API errors.
     """
     t0 = time.time()
@@ -291,12 +447,22 @@ def sync_brand_usage_to_lark(dry_run=False) -> dict:
     table_id = _find_table_id(token, app_token, table_name)
     log.info("Resolved '%s' → table_id=%s", table_name, table_id)
 
+    # Build project name → record_id map for the two-way link field
+    project_name_map = _build_project_name_map(token, lark_cfg)
+
     rows = _fetch_supabase_rows(db_cfg)
     log.info("Fetched %d rows from Supabase v_brand_usage_by_project", len(rows))
 
+    if not rows:
+        log.warning("Supabase returned 0 rows — skipping Lark write to avoid wiping the table. "
+                    "Check that the anon role has SELECT on v_brand_usage_by_project.")
+        return {"deleted": 0, "inserted": 0, "updated": 0, "options_added": 0,
+                "unlinked": 0, "took_ms": int((time.time() - t0) * 1000)}
+
     if dry_run:
-        _dry_run_report(token, app_token, table_id, table_name, rows, t0)
-        return {"deleted": 0, "inserted": 0, "options_added": 0,
+        _dry_run_report(token, app_token, table_id, table_name, rows, t0,
+                        project_name_map=project_name_map)
+        return {"deleted": 0, "inserted": 0, "updated": 0, "options_added": 0, "unlinked": 0,
                 "took_ms": int((time.time() - t0) * 1000), "dry_run": True}
 
     fields_meta = _list_fields(token, app_token, table_id)
@@ -311,39 +477,91 @@ def sync_brand_usage_to_lark(dry_run=False) -> dict:
 
     options_added = _ensure_select_options(token, app_token, table_id, fields_meta, rows)
 
-    record_ids = _list_all_record_ids(token, app_token, table_id)
-    deleted = _batch_delete(token, app_token, table_id, record_ids) if record_ids else 0
-    log.info("Deleted %d existing rows", deleted)
+    # Read existing Lark rows and build a key → (record_id, fields) index
+    existing_recs = _list_all_records(token, app_token, table_id)
+    existing = {_lark_rec_key(rec["fields"]): rec for rec in existing_recs}
+
+    # Index incoming Supabase rows by natural key
+    incoming = {_row_key(row): row for row in rows}
+
+    to_create = []
+    to_update = []   # list of (record_id, row)
+    for key, row in incoming.items():
+        if key not in existing:
+            to_create.append(row)
+        elif _rows_differ(row, existing[key]["fields"]):
+            to_update.append((existing[key]["record_id"], row))
+
+    to_delete = [existing[key]["record_id"] for key in existing if key not in incoming]
+
+    log.info("Diff: %d to create, %d to update, %d to delete",
+             len(to_create), len(to_update), len(to_delete))
 
     now_ms = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
-    inserted = _batch_create(token, app_token, table_id, rows, now_ms) if rows else 0
-    log.info("Inserted %d rows", inserted)
+    all_unlinked: list = []
+
+    # Safe order: create first, then update, then delete
+    inserted = 0
+    if to_create:
+        n, ul = _batch_create(token, app_token, table_id, to_create, now_ms, project_name_map)
+        inserted = n
+        all_unlinked.extend(ul)
+
+    updated = 0
+    if to_update:
+        n, ul = _batch_update(token, app_token, table_id, to_update, now_ms, project_name_map)
+        updated = n
+        all_unlinked.extend(ul)
+
+    deleted = 0
+    if to_delete:
+        deleted = _batch_delete(token, app_token, table_id, to_delete)
+
+    unique_unlinked = sorted(set(all_unlinked))
+    if unique_unlinked:
+        log.warning("%d project name(s) not found in Sale Projects (link will be empty): %s",
+                    len(unique_unlinked), unique_unlinked[:20])
 
     took_ms = int((time.time() - t0) * 1000)
-    log.info("Lark brand usage sync complete in %dms: deleted=%d inserted=%d options_added=%d",
-             took_ms, deleted, inserted, options_added)
-    return {"deleted": deleted, "inserted": inserted, "options_added": options_added,
-            "took_ms": took_ms}
+    log.info("Lark brand usage sync complete in %dms: inserted=%d updated=%d deleted=%d "
+             "options_added=%d unlinked=%d",
+             took_ms, inserted, updated, deleted, options_added, len(unique_unlinked))
+    return {"deleted": deleted, "inserted": inserted, "updated": updated,
+            "options_added": options_added, "unlinked": len(unique_unlinked), "took_ms": took_ms}
 
 
-def _dry_run_report(token, app_token, table_id, table_name, rows, t0):
-    record_ids = _list_all_record_ids(token, app_token, table_id)
+def _dry_run_report(token, app_token, table_id, table_name, rows, t0, project_name_map=None):
+    existing_recs = _list_all_records(token, app_token, table_id)
     fields_meta = _list_fields(token, app_token, table_id)
 
-    print(f"\nDRY RUN — no writes will be made")
-    print(f"  Table : {table_name} ({table_id})")
-    print(f"  Delete: {len(record_ids)} existing row(s)")
-    print(f"  Insert: {len(rows)} row(s) from Supabase")
+    existing = {_lark_rec_key(rec["fields"]): rec for rec in existing_recs}
+    incoming = {_row_key(row): row for row in rows}
+    to_create = [row for key, row in incoming.items() if key not in existing]
+    to_update = [(existing[key]["record_id"], row)
+                 for key, row in incoming.items()
+                 if key in existing and _rows_differ(row, existing[key]["fields"])]
+    to_delete = [existing[key]["record_id"] for key in existing if key not in incoming]
 
-    # Lark field type IDs: 1=Text, 2=Number, 3=Single-Select, 5=DateTime, 99001=Auto-number
+    print(f"\nDRY RUN — no writes will be made")
+    print(f"  Table    : {table_name} ({table_id})")
+    print(f"  Existing : {len(existing_recs)} row(s) in Lark")
+    print(f"  Supabase : {len(rows)} row(s)")
+    print(f"  → Create : {len(to_create)}")
+    print(f"  → Update : {len(to_update)}")
+    print(f"  → Delete : {len(to_delete)}")
+
+    # Lark field type IDs: 1=Text, 2=Number, 3=Single-Select, 5=DateTime,
+    #                      18=Link-to-record, 99001=Auto-number
     EXPECTED_TYPES = {
         "project_name": (1,),
         "project_category": (3,),
         "brand": (3,),
         "model": (1,),
+        "description": (1,),
         "times_specified": (2,),
         "total_qty": (2,),
         "last_updated": (5,),
+        "project_link": (18,),
     }
     print(f"\nField validation:")
     for field_key, lark_fn in FIELD_MAP.items():
@@ -367,10 +585,27 @@ def _dry_run_report(token, app_token, table_id, table_name, rows, t0):
         print(f"  '{lark_fn}': {len(existing)} existing, {len(missing)} new: "
               f"{sorted(missing)[:10]}{'...' if len(missing) > 10 else ''}")
 
+    if project_name_map is not None:
+        unlinked = sorted({
+            (row.get("project_name") or "").strip()
+            for row in rows
+            if (row.get("project_name") or "").strip() not in project_name_map
+        })
+        print(f"\nProject link check ({len(project_name_map)} Sale Projects loaded):")
+        if unlinked:
+            print(f"  WARNING: {len(unlinked)} project name(s) not found in Sale Projects "
+                  f"(link will be empty):")
+            for name in unlinked[:20]:
+                print(f"    - {name!r}")
+        else:
+            print(f"  OK — all project names resolve to a Sale Project record")
+
     if rows:
         print(f"\nSample rows (first 5):")
         for row in rows[:5]:
-            print(f"  {row.get('project_name','')!r:30s}  "
+            pname = (row.get("project_name") or "").strip()
+            linked = "✓" if (project_name_map and pname in project_name_map) else "?"
+            print(f"  [{linked}] {pname!r:30s}  "
                   f"{row.get('brand','')!r:15s}  "
                   f"{row.get('model','')!r:20s}  "
                   f"x{row.get('times_specified',0)}")
@@ -392,8 +627,9 @@ if __name__ == "__main__":
     try:
         result = sync_brand_usage_to_lark(dry_run=args.dry_run)
         if not args.dry_run:
-            print(f"Done. deleted={result['deleted']} inserted={result['inserted']} "
-                  f"options_added={result['options_added']} took={result['took_ms']}ms")
+            print(f"Done. inserted={result['inserted']} updated={result['updated']} "
+                  f"deleted={result['deleted']} options_added={result['options_added']} "
+                  f"unlinked={result['unlinked']} took={result['took_ms']}ms")
     except Exception as exc:
         print(f"ERROR: {exc}")
         raise SystemExit(1)

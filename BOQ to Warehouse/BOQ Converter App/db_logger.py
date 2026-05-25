@@ -21,7 +21,10 @@ from datetime import datetime
 logger = logging.getLogger("boq_converter")
 
 # Updated by _upload() after each Lark brand-usage sync. Read by app.py to show status.
-_lark_brand_sync_status: dict = {"ok": None, "time": None, "error": None}
+_lark_brand_sync_status: dict = {
+    "ok": None, "time": None, "error": None,
+    "in_progress": False, "started_at": None,
+}
 
 APPDATA = os.environ.get("APPDATA", os.path.expanduser("~"))
 CONFIG_DIR = os.path.join(APPDATA, "BOQConverter")
@@ -229,6 +232,12 @@ def _upload(url, anon_key, conversion, items):
 
 
 def _trigger_lark_brand_sync():
+    _lark_brand_sync_status.update({
+        "in_progress": True,
+        "started_at": datetime.utcnow().isoformat() + "Z",
+        "ok": None,
+        "error": None,
+    })
     try:
         from tools.lark_brand_usage_sync import sync_brand_usage_to_lark
         result = sync_brand_usage_to_lark()
@@ -237,12 +246,20 @@ def _trigger_lark_brand_sync():
             "time": datetime.utcnow().isoformat() + "Z",
             "error": None,
         })
-        logger.info("db_logger: lark brand usage sync ok — inserted=%d deleted=%d took=%dms",
-                    result.get("inserted", 0), result.get("deleted", 0), result.get("took_ms", 0))
+        logger.info(
+            "db_logger: lark brand usage sync ok — "
+            "inserted=%d updated=%d deleted=%d took=%dms",
+            result.get("inserted", 0), result.get("updated", 0),
+            result.get("deleted", 0), result.get("took_ms", 0))
     except Exception as e:
-        _lark_brand_sync_status.update({"ok": False, "time": datetime.utcnow().isoformat() + "Z",
-                                        "error": str(e)})
+        _lark_brand_sync_status.update({
+            "ok": False,
+            "time": datetime.utcnow().isoformat() + "Z",
+            "error": str(e),
+        })
         logger.warning("db_logger: lark brand usage sync failed: %s", e)
+    finally:
+        _lark_brand_sync_status["in_progress"] = False
 
 
 def log_conversion(project_name, categories, source_files,

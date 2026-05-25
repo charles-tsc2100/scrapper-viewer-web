@@ -101,6 +101,7 @@ class BOQConverterApp:
         self.combine_door_types = tk.BooleanVar(value=True)
         self.project_name = tk.StringVar(value="")
         self.project_category = tk.StringVar(value="")
+        self.project_category.trace_add("write", self._update_convert_btn_state)
         self.project_id = None         # Lark record_id, or None for custom projects
         self._original_category = ""   # category from Lark at pick time; "" means write-back needed if user fills it
         self._projects_cache = []      # list of dicts: {id, name, category, status, ...}
@@ -183,16 +184,6 @@ class BOQConverterApp:
             padx=8, pady=4,
             command=self._show_about)
         self._about_btn.pack(side=tk.RIGHT)
-
-        self._guide_btn = tk.Button(
-            inner, text=t("user_guide_btn"),
-            font=T.get_font("body", T.SIZE_BODY_SM),
-            fg=T.TEXT_SECONDARY, bg=T.SURFACE_LOW,
-            activebackground=T.SURFACE_LOW, activeforeground=T.TEXT_PRIMARY,
-            relief="flat", borderwidth=0, cursor="hand2",
-            padx=8, pady=4,
-            command=self._open_user_guide)
-        self._guide_btn.pack(side=tk.RIGHT)
 
         # Version pill with gold border
         ver_outer = tk.Frame(inner, bg=T.TS_GOLD, padx=1, pady=1)
@@ -502,9 +493,11 @@ class BOQConverterApp:
             entry_border, textvariable=self.project_name,
             font=T.get_font("body"),
             bg=T.SURFACE, fg=T.TEXT_PRIMARY,
+            readonlybackground=T.SURFACE,
             insertbackground=T.PRIMARY,
             borderwidth=0, relief="flat",
-            highlightthickness=0)
+            highlightthickness=0,
+            state="readonly")
         name_entry.pack(fill=tk.X, ipady=5, padx=T.SPACE_2)
 
         # ── Project picker (loads from Supabase `projects`, mirrored from Lark) ──
@@ -703,6 +696,7 @@ class BOQConverterApp:
             padx=T.SPACE_8, pady=T.SPACE_2,
             command=self._convert)
         self.convert_btn.pack(side=tk.LEFT)
+        self._update_convert_btn_state()
 
     def _text_logo(self, parent):
         lf = tk.Frame(parent, bg=T.SURFACE_LOW)
@@ -727,7 +721,6 @@ class BOQConverterApp:
         self._subtitle_label.config(text=t("header_subtitle"))
         self._lang_btn.config(text=t("lang_btn"))
         self._about_btn.config(text=t("about_btn"))
-        self._guide_btn.config(text=t("user_guide_btn"))
         self._version_label.config(text=t("version_label", version=APP_VERSION))
 
         # Stepper
@@ -798,6 +791,7 @@ class BOQConverterApp:
             if f not in self.boq_files:
                 self.boq_files.append(f)
                 self.file_listbox.insert(tk.END, os.path.basename(f))
+        self._update_convert_btn_state()
 
         count = len(self.boq_files)
         if count > 0:
@@ -895,11 +889,7 @@ class BOQConverterApp:
             self._project_picker_var.set("")
             self._picker_showing_placeholder = False
             self._project_picker.configure(foreground=T.TEXT_PRIMARY)
-            # Show full list when field is cleared on focus
-            custom = t("project_picker_custom")
-            self._project_picker["values"] = (
-                [p["name"] for p in self._projects_cache] + [custom]
-            )
+            self._project_picker["values"] = [p["name"] for p in self._projects_cache]
 
     def _on_picker_focus_out(self, _event=None):
         if not self._project_picker_var.get().strip():
@@ -916,28 +906,28 @@ class BOQConverterApp:
         if self._picker_showing_placeholder:
             return
         typed = self._project_picker_var.get().strip().lower()
-        custom = t("project_picker_custom")
         if not typed:
             filtered = [p["name"] for p in self._projects_cache]
         else:
             filtered = [p["name"] for p in self._projects_cache
                         if typed in p["name"].lower()]
-        self._project_picker["values"] = filtered + [custom]
+        self._project_picker["values"] = filtered
 
     def _on_project_picked(self, _event=None):
         selected = self._project_picker_var.get()
-        custom = t("project_picker_custom")
         self._picker_showing_placeholder = False
         self._project_picker.configure(foreground=T.TEXT_PRIMARY)
-        if selected == custom:
-            self.project_id = None
-            self._original_category = ""
-            # Leave name + category for user to fill manually.
-            return
         match = next((p for p in self._projects_cache if p["name"] == selected), None)
         if not match:
+            if selected and selected != getattr(self, "_picker_placeholder", ""):
+                messagebox.showwarning(
+                    t("project_required_title"),
+                    t("project_required_msg"))
+                self._project_picker_var.set("")
+                self._picker_showing_placeholder = False
             return
         self.project_id = match.get("id")
+        self._update_convert_btn_state()
         self._original_category = match.get("category") or ""
         self.project_name.set(match.get("name", ""))
         if self._original_category:
@@ -952,11 +942,13 @@ class BOQConverterApp:
         self.file_count_label.config(text=t("no_files_selected"), fg=T.TEXT_TERTIARY)
         self.parsed_categories.clear()
         self.qty_map.clear()
+        self._update_convert_btn_state()
         self._update_preview("")
         self.project_name.set("")
         self.project_category.set("")
         self.project_id = None
         self._original_category = ""
+        self._update_convert_btn_state()
         if hasattr(self, "_project_picker_var"):
             placeholder = (t("project_picker_placeholder") if self._projects_cache
                            else t("project_picker_unavailable"))
@@ -983,6 +975,7 @@ class BOQConverterApp:
                 cats, qty_map = parse_multiple_boq_files(self.boq_files, config)
                 self.parsed_categories = cats
                 self.qty_map = qty_map
+                self.root.after(0, self._update_convert_btn_state)
 
                 lines = []
                 total_doors = 0
@@ -1052,6 +1045,24 @@ class BOQConverterApp:
         self.preview_text.insert("1.0", text)
         self.preview_text.config(state=tk.DISABLED)
 
+    def _update_convert_btn_state(self, *_):
+        ready = bool(
+            self.boq_files and
+            self.parsed_categories and
+            self.project_id and
+            self.project_category.get().strip()
+        )
+        if ready:
+            self.convert_btn.config(
+                state=tk.NORMAL,
+                bg=T.PRIMARY, fg=T.TEXT_ON_PRIMARY,
+                cursor="hand2")
+        else:
+            self.convert_btn.config(
+                state=tk.DISABLED,
+                bg=T.GHOST_BORDER, fg=T.TEXT_SECONDARY,
+                cursor="")
+
     # ─────────────────────────────────────────────────────────
     # CONVERSION
     # ─────────────────────────────────────────────────────────
@@ -1062,6 +1073,11 @@ class BOQConverterApp:
             return
         if not self.parsed_categories:
             messagebox.showwarning(t("not_parsed_title"), t("not_parsed_msg"))
+            return
+        if not self.project_id:
+            messagebox.showwarning(
+                t("project_required_title"),
+                t("project_required_msg"))
             return
         if not self.project_category.get().strip():
             messagebox.showwarning(
@@ -1123,7 +1139,8 @@ class BOQConverterApp:
                 self.root.after(0, lambda: self._action_dot.itemconfig("dot", fill=T.SUCCESS))
                 self.root.after(0, lambda: self._lark_sync_label.config(
                     text="Lark: syncing…", fg=T.TEXT_TERTIARY))
-                self.root.after(12000, self._check_lark_sync_status)
+                snapshot = db_logger._lark_brand_sync_status.get("time")
+                self.root.after(1000, lambda s=snapshot: self._poll_lark_sync(s, 0))
                 self.root.after(0, lambda: messagebox.showinfo(
                     t("success_title"),
                     t("success_msg", path=output_path, count=len(self.parsed_categories))))
@@ -1146,20 +1163,38 @@ class BOQConverterApp:
 
         threading.Thread(target=do_convert, daemon=True).start()
 
-    def _check_lark_sync_status(self):
+    def _poll_lark_sync(self, snapshot, elapsed_s, interval_s=1, max_s=120):
+        """Poll _lark_brand_sync_status every interval_s until it resolves."""
         status = db_logger._lark_brand_sync_status
-        if status["ok"] is None:
-            return  # sync hasn't run yet (Lark not configured)
-        if status["ok"]:
-            try:
-                ts = status["time"][:16].replace("T", " ")  # "YYYY-MM-DD HH:MM"
-            except Exception:
-                ts = status["time"]
+        in_progress = status.get("in_progress", False)
+        ok = status.get("ok")
+        current_time = status.get("time")
+
+        if not in_progress and current_time != snapshot and ok is not None:
+            # Sync finished — show result
+            if ok:
+                try:
+                    ts = current_time[:16].replace("T", " ")
+                except Exception:
+                    ts = current_time
+                self._lark_sync_label.config(
+                    text=f"Lark dashboard: updated {ts}", fg=T.SUCCESS)
+            else:
+                self._lark_sync_label.config(
+                    text="Lark dashboard: sync failed — see log", fg=T.ERROR)
+            return
+
+        if elapsed_s >= max_s:
             self._lark_sync_label.config(
-                text=f"Lark dashboard: updated {ts}", fg=T.SUCCESS)
-        else:
-            self._lark_sync_label.config(
-                text="Lark dashboard: sync failed — see log", fg=T.ERROR)
+                text="Lark: sync still running — check log", fg=T.TEXT_TERTIARY)
+            return
+
+        # Still in progress — keep polling
+        next_elapsed = elapsed_s + interval_s
+        self.root.after(
+            interval_s * 1000,
+            lambda s=snapshot, e=next_elapsed: self._poll_lark_sync(s, e, interval_s, max_s)
+        )
 
     # ─────────────────────────────────────────────────────────
     # ERROR LOG VIEWER
@@ -1278,10 +1313,6 @@ class BOQConverterApp:
     # ─────────────────────────────────────────────────────────
     # ABOUT DIALOG
     # ─────────────────────────────────────────────────────────
-
-    def _open_user_guide(self):
-        guide_path = os.path.join(BASE_DIR, "user_guide.html")
-        webbrowser.open(f"file:///{guide_path.replace(os.sep, '/')}")
 
     def _show_about(self):
         about = tk.Toplevel(self.root)
