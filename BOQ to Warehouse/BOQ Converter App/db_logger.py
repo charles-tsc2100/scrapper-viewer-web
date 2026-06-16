@@ -33,6 +33,15 @@ LARK_CONFIG_FILE = os.path.join(CONFIG_DIR, "lark_config.json")
 PENDING_FILE = os.path.join(CONFIG_DIR, "pending_uploads.jsonl")
 LARK_HOST = "https://open.larksuite.com"
 
+_BRAND_OVERRIDES: dict = {}
+
+
+def _normalize_brand(value):
+    s = (value or "").strip()
+    if not s:
+        return ""
+    return _BRAND_OVERRIDES.get(s.lower(), s.upper())
+
 
 def _load_db_config():
     if not os.path.exists(DB_CONFIG_FILE):
@@ -133,6 +142,10 @@ def _build_record(project_name, project_category, project_id, categories, source
                     "quantity": float(dp.quantity),
                     "is_option": bool(dp.product.is_option),
                     "source_sheet": dt.source_sheet or "",
+                    "unit_price": float(dp.product.unit_price or 0),
+                    "raw_list_price": float(dp.product.raw_list_price or 0),
+                    "is_net_price": bool(dp.product.is_net_price),
+                    "discount_rate": float(dt.discount_rate or 0),
                 })
 
     return conversion, items
@@ -167,7 +180,6 @@ def _flush_pending(url, anon_key):
                 conv = record["conversion"]
                 _supersede_prior(url, anon_key,
                                  conv.get("project_name", ""),
-                                 conv.get("project_category", ""),
                                  conv["id"])
                 _post(url, anon_key, "conversions", [conv])
                 if record.get("items"):
@@ -185,18 +197,19 @@ def _flush_pending(url, anon_key):
         logger.warning("db_logger: pending flush failed: %s", e)
 
 
-def _supersede_prior(url, anon_key, project_name, project_category, new_id):
-    """Flag prior conversions for the same (project_name, project_category) as not-latest.
+def _supersede_prior(url, anon_key, project_name, new_id):
+    """Flag prior conversions for the same project_name as not-latest.
 
-    A project is considered "the same" iff both name AND category match exactly.
+    A project is identified by name alone; category is metadata of the latest
+    conversion and may change freely on re-convert.
     Empty project_name is treated as 'untracked' and never superseded.
     """
     if not project_name:
         return
+    logger.info("db_logger: superseding prior conversions for project '%s'", project_name)
     now = datetime.utcnow().isoformat() + "Z"
     params = {
         "project_name": f"eq.{project_name}",
-        "project_category": f"eq.{project_category or ''}",
         "is_latest": "eq.true",
         "id": f"neq.{new_id}",
     }
@@ -210,7 +223,6 @@ def _upload(url, anon_key, conversion, items):
         _flush_pending(url, anon_key)
         _supersede_prior(url, anon_key,
                          conversion.get("project_name", ""),
-                         conversion.get("project_category", ""),
                          conversion["id"])
         _post(url, anon_key, "conversions", [conversion])
         if items:
@@ -316,7 +328,7 @@ def _lark_tenant_token(lark_cfg):
 
 def _lark_patch_record(lark_cfg, token, record_id, fields):
     import requests as _requests
-    r = _requests.patch(
+    r = _requests.put(
         f"{LARK_HOST}/open-apis/bitable/v1/apps/{lark_cfg['base_app_token']}"
         f"/tables/{lark_cfg['table_id']}/records/{record_id}",
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
@@ -325,7 +337,7 @@ def _lark_patch_record(lark_cfg, token, record_id, fields):
     )
     r.raise_for_status()
     data = r.json()
-    if data.get("code") != 0:
+    if data.get("code") not in (0, 1254606):
         raise RuntimeError(f"Lark patch failed: {data}")
 
 
@@ -370,6 +382,139 @@ def write_back_category(project_id, lark_record_id, category):
     threading.Thread(
         target=_write_back,
         args=(project_id, lark_record_id, category),
+        daemon=True,
+    ).start()
+
+
+def _lark_get_record(lark_cfg, token, record_id):
+    import requests as _requests
+    r = _requests.get(
+        f"{LARK_HOST}/open-apis/bitable/v1/apps/{lark_cfg['base_app_token']}"
+        f"/tables/{lark_cfg['table_id']}/records/{record_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=10,
+    )
+    r.raise_for_status()
+    data = r.json()
+    if data.get("code") != 0:
+        raise RuntimeError(f"Lark get_record failed: {data}")
+    return data["data"]["record"].get("fields", {})
+
+
+def _lark_list_fields(lark_cfg, token):
+    import requests as _requests
+    r = _requests.get(
+        f"{LARK_HOST}/open-apis/bitable/v1/apps/{lark_cfg['base_app_token']}"
+        f"/tables/{lark_cfg['table_id']}/fields",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=10,
+    )
+    r.raise_for_status()
+    data = r.json()
+    if data.get("code") != 0:
+        raise RuntimeError(f"Lark list_fields failed: {data}")
+    return data["data"]["items"]
+
+
+def _lark_ensure_brands_options(lark_cfg, token, field_meta, brands):
+    """Add any missing brand names to the Brands multi-select field options."""
+    import requests as _requests
+    brands = [_normalize_brand(b) for b in brands if b]
+    brands = sorted({b for b in brands if b})
+    existing = {o["name"] for o in (field_meta.get("property") or {}).get("options", []) if o}
+    missing = sorted(b for b in brands if b and b not in existing)
+    if not missing:
+        return
+    existing_opts = (field_meta.get("property") or {}).get("options", [])
+    new_opts = [{"name": o} for o in missing]
+    payload = {
+        "field_name": field_meta["field_name"],
+        "type": field_meta["type"],
+        "property": {"options": existing_opts + new_opts},
+    }
+    r = _requests.put(
+        f"{LARK_HOST}/open-apis/bitable/v1/apps/{lark_cfg['base_app_token']}"
+        f"/tables/{lark_cfg['table_id']}/fields/{field_meta['field_id']}",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=10,
+    )
+    r.raise_for_status()
+    resp = r.json()
+    if resp.get("code") not in (0, 1254606):
+        raise RuntimeError(f"Lark patch Brands field failed: {resp}")
+    logger.info("db_logger: added %d brand option(s) to Brands field: %s", len(missing), missing)
+
+
+def _update_sale_project_fields(project_id, brands):
+    """Set Status→'BOQ' (if empty) and Brands on the Lark Sale Projects record.
+    Runs in a background thread — never raises.
+    """
+    lark_cfg = _load_lark_config()
+    if not lark_cfg:
+        return
+
+    field_map = lark_cfg.get("field_map") or {}
+    status_field = field_map.get("status", "Status")
+    brands_field = field_map.get("brands", "Brands")
+
+    try:
+        token = _lark_tenant_token(lark_cfg)
+
+        # Read the current record to check Status
+        current_fields = _lark_get_record(lark_cfg, token, project_id)
+
+        # Get field metadata for Brands option provisioning
+        fields_meta = _lark_list_fields(lark_cfg, token)
+        brands_meta = next((f for f in fields_meta if f.get("field_name") == brands_field), None)
+
+        patch = {}
+
+        # Only set Status if currently empty
+        current_status = current_fields.get(status_field)
+        if isinstance(current_status, dict):
+            current_status = current_status.get("text") or current_status.get("value") or ""
+        if isinstance(current_status, list):
+            current_status = "".join(
+                seg.get("text", "") for seg in current_status if isinstance(seg, dict))
+        if not (current_status or "").strip():
+            patch[status_field] = "BOQ"
+            logger.info("db_logger: will set Status=BOQ for record %s", project_id)
+
+        # Normalize and populate Brands multi-select
+        brands = sorted({_normalize_brand(b) for b in brands if b})
+        if brands and brands_meta:
+            field_type = brands_meta.get("type")
+            if field_type in (3, 4):  # 3=single-select, 4=multi-select
+                _lark_ensure_brands_options(lark_cfg, token, brands_meta, brands)
+                if field_type == 4:
+                    patch[brands_field] = brands  # multi-select: list of names
+                else:
+                    patch[brands_field] = brands[0] if brands else ""
+            else:
+                logger.warning(
+                    "db_logger: Brands field type=%s is not a select — skipping brands write",
+                    field_type)
+
+        if not patch:
+            logger.info("db_logger: no Sale Projects fields to update for record %s", project_id)
+            return
+
+        _lark_patch_record(lark_cfg, token, project_id, patch)
+        logger.info(
+            "db_logger: updated Sale Projects record %s — fields: %s",
+            project_id, list(patch.keys()))
+    except Exception as e:
+        logger.warning("db_logger: update_sale_project_fields failed: %s", e)
+
+
+def update_sale_project_fields(project_id, brands):
+    """Non-blocking: update Status (if empty → 'BOQ') and Brands on the Lark Sale Projects record."""
+    if not project_id:
+        return
+    threading.Thread(
+        target=_update_sale_project_fields,
+        args=(project_id, brands),
         daemon=True,
     ).start()
 

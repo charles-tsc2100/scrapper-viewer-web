@@ -1,5 +1,5 @@
 """
-Syncs BOQ brand/model usage aggregates from Supabase → Lark Base "CRM v1.3".
+Syncs BOQ brand/model usage aggregates from Supabase -> Lark Base "CRM v1.3".
 
 Reads:
   %APPDATA%/BOQConverter/lark_config.json  (app_id, app_secret, brand_usage_base_app_token)
@@ -44,13 +44,27 @@ FIELD_MAP = {
     "times_specified":  "times_specified",
     "total_qty":        "total_qty",
     "last_updated":     "last_updated",
-    "project_link":     "project_link",
+    "project_link":     "Sale Projects",   # two-way link field in BOQ Brand Usage -> Sale Projects
+    "unit_price":       "unit_price",
+    "list_price":       "list_price",
+    "discount_rate":    "discount_rate",
+    "price_varies":     "price_varies",    # Checkbox: true when same SKU has >1 price in this project
 }
 
 # Fields that are Single-Select in Lark and need option pre-provisioning
 SELECT_FIELDS = {"project_category", "brand"}
 
 log = logging.getLogger("lark_brand_usage_sync")
+
+# Mirrors boq_parser.normalize_brand — kept inline to avoid import dependency.
+_BRAND_OVERRIDES: dict = {}
+
+
+def _normalize_brand(value):
+    s = (value or "").strip()
+    if not s:
+        return ""
+    return _BRAND_OVERRIDES.get(s.lower(), s.upper())
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -118,7 +132,7 @@ def _find_table_id(token, app_token, table_name):
         f"Tables visible to this app: {visible}\n"
         f"If '{table_name}' is missing from the list, the 'BOQ Project Sync' Lark app\n"
         f"lacks permission on it. Fix: in CRM v1.3, remove and re-add the app under\n"
-        f"Share → App access with 'Can edit' on the whole base, then retry."
+        f"Share -> App access with 'Can edit' on the whole base, then retry."
     )
 
 
@@ -149,7 +163,10 @@ def _ensure_select_options(token, app_token, table_id, fields_meta, rows):
 
         existing_options = (field.get("property") or {}).get("options", []) or []
         existing_names = {o["name"] for o in existing_options if o}
-        needed = {str(row[field_key]) for row in rows if row.get(field_key)}
+        if field_key == "brand":
+            needed = {_normalize_brand(row.get(field_key)) for row in rows if row.get(field_key)}
+        else:
+            needed = {str(row[field_key]) for row in rows if row.get(field_key)}
         missing = needed - existing_names
         if not missing:
             continue
@@ -176,6 +193,49 @@ def _ensure_select_options(token, app_token, table_id, fields_meta, rows):
                  len(missing), lark_field_name, sorted(missing))
         total_added += len(missing)
     return total_added
+
+
+def _prune_select_options(token, app_token, table_id, fields_meta, rows):
+    """Remove single-select options that no longer appear in any incoming row."""
+    total_removed = 0
+    for field_key in SELECT_FIELDS:
+        lark_field_name = FIELD_MAP[field_key]
+        field = next((f for f in fields_meta if f.get("field_name") == lark_field_name), None)
+        if not field:
+            continue
+
+        existing_options = (field.get("property") or {}).get("options", []) or []
+        if field_key == "brand":
+            in_use = {_normalize_brand(row.get(field_key)) for row in rows if row.get(field_key)}
+        else:
+            in_use = {str(row[field_key]) for row in rows if row.get(field_key)}
+
+        # Keep options whose name is still in use; discard the rest.
+        kept = [o for o in existing_options if o.get("name") in in_use]
+        removed_names = [o["name"] for o in existing_options if o.get("name") not in in_use]
+        if not removed_names:
+            continue
+
+        payload = {
+            "field_name": lark_field_name,
+            "type": field["type"],
+            "property": {"options": kept},
+        }
+        r = requests.put(
+            f"{LARK_HOST}/open-apis/bitable/v1/apps/{app_token}"
+            f"/tables/{table_id}/fields/{field['field_id']}",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=10,
+        )
+        r.raise_for_status()
+        resp = r.json()
+        if resp.get("code") not in (0, 1254606):
+            raise RuntimeError(f"Lark prune_field failed for '{lark_field_name}': {resp}")
+        log.info("Pruned %d stale option(s) from '%s': %s",
+                 len(removed_names), lark_field_name, sorted(removed_names))
+        total_removed += len(removed_names)
+    return total_removed
 
 
 # ── Sale Projects map ─────────────────────────────────────────────────────────
@@ -218,7 +278,7 @@ def _build_project_name_map(token, lark_cfg):
         page_token = data["data"].get("page_token")
         if not page_token:
             break
-    log.info("Loaded %d Sale Project name→record_id mappings", len(name_map))
+    log.info("Loaded %d Sale Project name->record_id mappings", len(name_map))
     return name_map
 
 
@@ -245,7 +305,8 @@ def _fetch_supabase_rows(db_cfg):
 
 # Fields read back from Lark to drive the diff comparison
 _KEY_FIELDS = ["project_name", "brand", "model"]
-_CMP_FIELDS = ["project_category", "description", "times_specified", "total_qty"]
+_CMP_FIELDS = ["project_category", "description", "times_specified", "total_qty",
+               "unit_price", "list_price", "discount_rate", "price_varies"]
 
 
 def _list_all_records(token, app_token, table_id):
@@ -297,7 +358,7 @@ def _extract_text(val):
 def _row_key(row):
     return (
         (row.get("project_name") or "").strip(),
-        (row.get("brand") or "").strip(),
+        _normalize_brand(row.get("brand")),
         (row.get("model") or "").strip(),
     )
 
@@ -305,7 +366,7 @@ def _row_key(row):
 def _lark_rec_key(fields):
     return (
         _extract_text(fields.get(FIELD_MAP["project_name"])),
-        _extract_text(fields.get(FIELD_MAP["brand"])),
+        _normalize_brand(_extract_text(fields.get(FIELD_MAP["brand"]))),
         _extract_text(fields.get(FIELD_MAP["model"])),
     )
 
@@ -328,6 +389,15 @@ def _rows_differ(row, fields):
         lark_qty = 0.0
     if abs(lark_qty - float(row.get("total_qty") or 0)) > 0.0001:
         return True
+    for price_key in ("unit_price", "list_price", "discount_rate"):
+        try:
+            lark_val = float(fields.get(FIELD_MAP[price_key]) or 0)
+        except (TypeError, ValueError):
+            lark_val = 0.0
+        if abs(lark_val - float(row.get(price_key) or 0)) > 0.001:
+            return True
+    if bool(fields.get(FIELD_MAP["price_varies"])) != bool(row.get("price_varies")):
+        return True
     return False
 
 
@@ -336,18 +406,22 @@ def _build_fields(row, now_ms, project_name_map=None):
     fields = {
         FIELD_MAP["project_name"]:     pname,
         FIELD_MAP["project_category"]: row.get("project_category") or "",
-        FIELD_MAP["brand"]:            row.get("brand") or "",
+        FIELD_MAP["brand"]:            _normalize_brand(row.get("brand")),
         FIELD_MAP["model"]:            row.get("model") or "",
         FIELD_MAP["description"]:      row.get("description") or "",
         FIELD_MAP["times_specified"]:  int(row.get("times_specified") or 0),
         FIELD_MAP["total_qty"]:        float(row.get("total_qty") or 0),
         FIELD_MAP["last_updated"]:     now_ms,
+        FIELD_MAP["unit_price"]:       float(row.get("unit_price") or 0),
+        FIELD_MAP["list_price"]:       float(row.get("list_price") or 0),
+        FIELD_MAP["discount_rate"]:    float(row.get("discount_rate") or 0),
+        FIELD_MAP["price_varies"]:     bool(row.get("price_varies")),
     }
     linked = False
     if project_name_map is not None:
         rec_id = project_name_map.get(pname)
         if rec_id:
-            fields[FIELD_MAP["project_link"]] = [rec_id]  # one-way link: list of record_id strings
+            fields[FIELD_MAP["project_link"]] = [rec_id]  # two-way link: Lark auto-updates Sale Projects side
             linked = True
     return fields, linked
 
@@ -445,9 +519,9 @@ def sync_brand_usage_to_lark(dry_run=False) -> dict:
 
     token = _lark_token(lark_cfg)
     table_id = _find_table_id(token, app_token, table_name)
-    log.info("Resolved '%s' → table_id=%s", table_name, table_id)
+    log.info("Resolved '%s' -> table_id=%s", table_name, table_id)
 
-    # Build project name → record_id map for the two-way link field
+    # Build project name -> record_id map for the two-way link field
     project_name_map = _build_project_name_map(token, lark_cfg)
 
     rows = _fetch_supabase_rows(db_cfg)
@@ -477,9 +551,18 @@ def sync_brand_usage_to_lark(dry_run=False) -> dict:
 
     options_added = _ensure_select_options(token, app_token, table_id, fields_meta, rows)
 
-    # Read existing Lark rows and build a key → (record_id, fields) index
+    # Read existing Lark rows and build a key -> (record_id, fields) index.
+    # If two Lark rows share the same natural key (duplicate from a past bad sync),
+    # keep the first and queue the rest for immediate deletion.
     existing_recs = _list_all_records(token, app_token, table_id)
-    existing = {_lark_rec_key(rec["fields"]): rec for rec in existing_recs}
+    existing = {}
+    duplicate_ids = []
+    for rec in existing_recs:
+        key = _lark_rec_key(rec["fields"])
+        if key in existing:
+            duplicate_ids.append(rec["record_id"])
+        else:
+            existing[key] = rec
 
     # Index incoming Supabase rows by natural key
     incoming = {_row_key(row): row for row in rows}
@@ -493,6 +576,7 @@ def sync_brand_usage_to_lark(dry_run=False) -> dict:
             to_update.append((existing[key]["record_id"], row))
 
     to_delete = [existing[key]["record_id"] for key in existing if key not in incoming]
+    to_delete.extend(duplicate_ids)  # always purge duplicates regardless of incoming
 
     log.info("Diff: %d to create, %d to update, %d to delete",
              len(to_create), len(to_update), len(to_delete))
@@ -517,6 +601,11 @@ def sync_brand_usage_to_lark(dry_run=False) -> dict:
     if to_delete:
         deleted = _batch_delete(token, app_token, table_id, to_delete)
 
+    # Prune stale single-select options (e.g. "Elmes" after all records have been deleted/updated)
+    # Re-fetch field metadata after the delete pass so we see current state.
+    fields_meta_after = _list_fields(token, app_token, table_id)
+    options_removed = _prune_select_options(token, app_token, table_id, fields_meta_after, rows)
+
     unique_unlinked = sorted(set(all_unlinked))
     if unique_unlinked:
         log.warning("%d project name(s) not found in Sale Projects (link will be empty): %s",
@@ -524,10 +613,11 @@ def sync_brand_usage_to_lark(dry_run=False) -> dict:
 
     took_ms = int((time.time() - t0) * 1000)
     log.info("Lark brand usage sync complete in %dms: inserted=%d updated=%d deleted=%d "
-             "options_added=%d unlinked=%d",
-             took_ms, inserted, updated, deleted, options_added, len(unique_unlinked))
+             "options_added=%d options_removed=%d unlinked=%d",
+             took_ms, inserted, updated, deleted, options_added, options_removed, len(unique_unlinked))
     return {"deleted": deleted, "inserted": inserted, "updated": updated,
-            "options_added": options_added, "unlinked": len(unique_unlinked), "took_ms": took_ms}
+            "options_added": options_added, "options_removed": options_removed,
+            "unlinked": len(unique_unlinked), "took_ms": took_ms}
 
 
 def _dry_run_report(token, app_token, table_id, table_name, rows, t0, project_name_map=None):
@@ -546,22 +636,26 @@ def _dry_run_report(token, app_token, table_id, table_name, rows, t0, project_na
     print(f"  Table    : {table_name} ({table_id})")
     print(f"  Existing : {len(existing_recs)} row(s) in Lark")
     print(f"  Supabase : {len(rows)} row(s)")
-    print(f"  → Create : {len(to_create)}")
-    print(f"  → Update : {len(to_update)}")
-    print(f"  → Delete : {len(to_delete)}")
+    print(f"  -> Create : {len(to_create)}")
+    print(f"  -> Update : {len(to_update)}")
+    print(f"  -> Delete : {len(to_delete)}")
 
     # Lark field type IDs: 1=Text, 2=Number, 3=Single-Select, 5=DateTime,
-    #                      18=Link-to-record, 99001=Auto-number
+    #                      7=Checkbox, 18=Link-to-record, 99001=Auto-number
     EXPECTED_TYPES = {
-        "project_name": (1,),
+        "project_name":     (1,),
         "project_category": (3,),
-        "brand": (3,),
-        "model": (1,),
-        "description": (1,),
-        "times_specified": (2,),
-        "total_qty": (2,),
-        "last_updated": (5,),
-        "project_link": (18,),
+        "brand":            (3,),
+        "model":            (1,),
+        "description":      (1,),
+        "times_specified":  (2,),
+        "total_qty":        (2,),
+        "last_updated":     (5,),
+        "project_link":     (18, 21),  # 18=one-way link, 21=two-way link
+        "unit_price":       (2,),
+        "list_price":       (2,),
+        "discount_rate":    (2,),
+        "price_varies":     (7,),
     }
     print(f"\nField validation:")
     for field_key, lark_fn in FIELD_MAP.items():
@@ -604,7 +698,7 @@ def _dry_run_report(token, app_token, table_id, table_name, rows, t0, project_na
         print(f"\nSample rows (first 5):")
         for row in rows[:5]:
             pname = (row.get("project_name") or "").strip()
-            linked = "✓" if (project_name_map and pname in project_name_map) else "?"
+            linked = "Y" if (project_name_map and pname in project_name_map) else "?"
             print(f"  [{linked}] {pname!r:30s}  "
                   f"{row.get('brand','')!r:15s}  "
                   f"{row.get('model','')!r:20s}  "
@@ -619,7 +713,7 @@ if __name__ == "__main__":
         format="%(asctime)s  %(levelname)-7s  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    parser = argparse.ArgumentParser(description="Sync BOQ brand usage → Lark Base CRM v1.3")
+    parser = argparse.ArgumentParser(description="Sync BOQ brand usage -> Lark Base CRM v1.3")
     parser.add_argument("--dry-run", action="store_true",
                         help="Preview what would be written without making any changes.")
     args = parser.parse_args()

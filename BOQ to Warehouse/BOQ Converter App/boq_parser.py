@@ -52,6 +52,18 @@ def _clean_str(val):
     return str(val).strip()
 
 
+# Optional override map: lowercase key -> canonical display form.
+# Empty by default (pure uppercase). Add entries like {"unifi": "UniFi"} if needed later.
+BRAND_OVERRIDES: dict = {}
+
+
+def normalize_brand(value):
+    s = (value or "").strip()
+    if not s:
+        return ""
+    return BRAND_OVERRIDES.get(s.lower(), s.upper())
+
+
 def _to_float(val):
     if val is None:
         return 0.0
@@ -346,7 +358,7 @@ def parse_boq_sheet(ws, sheet_name, cfg=None):
         if row_idx in skip_rows:
             continue
 
-        brand = _clean_str(ws.cell(row=row_idx, column=brand_col).value)
+        brand = normalize_brand(ws.cell(row=row_idx, column=brand_col).value)
         model = _clean_str(ws.cell(row=row_idx, column=model_col).value)
         desc = _clean_str(ws.cell(row=row_idx, column=desc_col).value)
 
@@ -380,8 +392,9 @@ def parse_boq_sheet(ws, sheet_name, cfg=None):
             # Column J says "NET" -> net price, use column I value
             is_net = True
         elif isinstance(net_val, (int, float)) and net_val > 0:
-            # Column J has a numeric value -> use that as the ราคา price instead of column I
-            unit_price = float(net_val)
+            # Column J is NET AFTER DISCOUNT — keep col I as the list price (unit_price).
+            # The output's DISCOUNT row handles the per-door discount; col D should show
+            # the original UNIT (col I) price, not the already-discounted J value.
             is_net = False
 
         # Merged companion row
