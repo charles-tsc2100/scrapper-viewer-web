@@ -131,23 +131,32 @@ def _detect_sheet_config(ws):
     if header_row is None:
         return cfg
 
-    # Door codes are in the rows above the header row
-    # Scan upward from header to find the TOPMOST row with a door-code-like value in col B
+    # Door codes are in the rows above the header row.
+    # Their column varies: most files use column B, but some (e.g. King Square) list
+    # grouped door codes in column A. Try B first (preserves existing behaviour), then A.
+    _skip_kw = ["project", "zone", "design", "date", "option",
+                "door hardware", "hardware", "access control"]
     topmost_door_row = None
-    for row_idx in range(header_row - 1, max(0, header_row - 10), -1):
-        val = ws.cell(row=row_idx, column=2).value
-        if val and isinstance(val, str):
-            cleaned = val.strip()
-            if cleaned and len(cleaned) < 20 and not any(
-                kw in cleaned.lower() for kw in ["project", "zone", "design", "date", "option",
-                                                   "door hardware", "hardware", "access control"]
-            ):
-                topmost_door_row = row_idx
-                # Don't break - keep scanning upward to find the very first row
+    door_code_col_idx = None
+    for col_idx in (2, 1):  # B first, then A
+        found_row = None
+        for row_idx in range(header_row - 1, max(0, header_row - 10), -1):
+            val = ws.cell(row=row_idx, column=col_idx).value
+            if val and isinstance(val, str):
+                cleaned = val.strip()
+                if cleaned and len(cleaned) < 20 and not any(
+                    kw in cleaned.lower() for kw in _skip_kw
+                ):
+                    found_row = row_idx
+                    # Keep scanning upward to find the very first row
+        if found_row is not None:
+            topmost_door_row = found_row
+            door_code_col_idx = col_idx
+            break
 
     if topmost_door_row is not None:
         cfg.door_code_start_row = topmost_door_row
-        cfg.door_code_col = "B"
+        cfg.door_code_col = _idx_to_col(door_code_col_idx)
 
     # Detect product columns from header row labels
     # Scan header row for known labels

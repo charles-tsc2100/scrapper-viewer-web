@@ -2,10 +2,114 @@ r"""
 Version information and changelog for BOQ to Warehouse Form Converter.
 """
 
-APP_VERSION = "1.2.2"
-APP_BUILD_DATE = "2026-05-22"
+APP_VERSION = "1.4.1"
+APP_BUILD_DATE = "2026-06-17"
 
 CHANGELOG = [
+    {
+        "version": "1.4.1",
+        "date": "2026-06-17",
+        "changes": {
+            "en": [
+                "Fixed: BOQ files where multiple door codes share one schedule sheet (codes listed in column A) now correctly output all door types — previously only the sheet name was used, silently dropping the sibling codes",
+            ],
+            "th": [
+                "แก้ไข: ไฟล์ BOQ ที่มีรหัสประตูหลายรายการในชีตเดียวกัน (รหัสอยู่ในคอลัมน์ A) ตอนนี้แสดงประตูครบทุกประเภทแล้ว — ก่อนหน้านี้ระบบใช้เฉพาะชื่อชีตเป็นรหัสเดียว ทำให้รหัสที่เหลือหายไปโดยไม่แจ้งเตือน",
+            ],
+        },
+    },
+    {
+        "version": "1.4.0",
+        "date": "2026-06-08",
+        "changes": {
+            "en": [
+                "Added: Product prices (effective unit price, list price, discount rate) are now recorded in the database for every conversion — enables per-project price history and cross-project price comparison",
+                "Added: BOQ Brand Usage table in Lark now shows unit price, list price, discount rate, and a 'price varies' flag when the same SKU appears at different prices within a project",
+                "Added: Converting a BOQ now automatically updates the linked Sale Projects record — sets Status to 'BOQ' (if currently empty) and fills the Brands field with all brands in the BOQ",
+                "Fixed: BOQ Brand Usage 'Sale Projects' link field now correctly uses the two-way link type",
+            ],
+            "th": [
+                "เพิ่ม: ราคาสินค้า (ราคาต่อหน่วยจริง, ราคาตามรายการ, อัตราส่วนลด) ถูกบันทึกในฐานข้อมูลทุกครั้งที่แปลง — ช่วยให้ดูประวัติราคาต่อโครงการและเปรียบเทียบราคาข้ามโครงการได้",
+                "เพิ่ม: ตาราง BOQ Brand Usage ใน Lark แสดงราคาต่อหน่วย, ราคาตามรายการ, อัตราส่วนลด และ flag 'price varies' เมื่อ SKU เดียวกันมีราคาต่างกันในโครงการเดียวกัน",
+                "เพิ่ม: การแปลง BOQ จะอัปเดต Sale Projects ที่เชื่อมโยงโดยอัตโนมัติ — ตั้ง Status เป็น 'BOQ' (ถ้าว่างอยู่) และกรอก Brands ด้วยแบรนด์ทั้งหมดในไฟล์ BOQ",
+                "แก้ไข: ฟิลด์ลิงก์ 'Sale Projects' ใน BOQ Brand Usage ใช้ประเภท two-way link ที่ถูกต้องแล้ว",
+            ],
+        },
+    },
+    {
+        "version": "1.3.3",
+        "date": "2026-05-25",
+        "changes": {
+            "en": [
+                "Fixed: Duplicate rows in Lark BOQ Brand Usage (from prior category-change re-converts) are now detected and removed on the next sync",
+                "Fixed: Offline-queued conversions failed to supersede prior entries when flushed — they now correctly replace the old project data",
+            ],
+            "th": [
+                "แก้ไข: แถวซ้ำใน Lark BOQ Brand Usage (จากการแปลงซ้ำที่เคยเปลี่ยนประเภทโครงการ) จะถูกตรวจพบและลบออกในการซิงค์ครั้งถัดไป",
+                "แก้ไข: การแปลงที่บันทึกไว้ขณะออฟไลน์ไม่สามารถแทนที่ข้อมูลเดิมได้เมื่ออัปโหลด — ตอนนี้จะแทนที่ข้อมูลโครงการเก่าได้ถูกต้อง",
+            ],
+        },
+    },
+    {
+        "version": "1.3.2",
+        "date": "2026-05-25",
+        "changes": {
+            "en": [
+                "Fixed: Re-converting a project under a different Project Category no longer creates duplicate rows in the Lark BOQ Brand Usage table — the previous conversion is now correctly replaced regardless of category change",
+            ],
+            "th": [
+                "แก้ไข: การแปลงโครงการเดิมซ้ำด้วยประเภทโครงการที่ต่างออกไปจะไม่สร้างแถวซ้ำใน Lark BOQ Brand Usage อีกต่อไป — การแปลงก่อนหน้าจะถูกแทนที่อย่างถูกต้องไม่ว่าประเภทโครงการจะเปลี่ยนหรือไม่",
+            ],
+        },
+    },
+    {
+        "version": "1.3.1",
+        "date": "2026-05-25",
+        "changes": {
+            "en": [
+                "Fixed: Project Name field is now read-only — name is set automatically from the Lark project picker",
+                "Improved: Convert button is now greyed out until all requirements are met (files loaded, parsed, project selected, category chosen)",
+                "Removed: User Guide button from the header",
+            ],
+            "th": [
+                "แก้ไข: ฟิลด์ชื่อโปรเจกต์เป็น read-only แล้ว — ชื่อจะถูกกำหนดจากการเลือกโปรเจกต์ใน Lark อัตโนมัติ",
+                "ปรับปรุง: ปุ่ม Convert จะแสดงสีเทาจนกว่าจะครบเงื่อนไข (โหลดไฟล์, parse, เลือกโปรเจกต์, เลือกประเภทโปรเจกต์)",
+                "ลบ: ปุ่ม User Guide ออกจากส่วนหัว",
+            ],
+        },
+    },
+    {
+        "version": "1.3.0",
+        "date": "2026-05-25",
+        "changes": {
+            "en": [
+                "Changed: Project must now be selected from Lark — free-text custom project names are no longer allowed",
+                "Added: If a project is missing from the list, the app now shows a clear message to create it in Lark first then Refresh",
+                "Added: BOQ Brand Usage table in Lark CRM is now linked to Sale Projects via a two-way native link field",
+                "Added: Model description is now tracked in BOQ Brand Usage alongside brand and model code",
+            ],
+            "th": [
+                "เปลี่ยนแปลง: ต้องเลือกโปรเจกต์จาก Lark เท่านั้น — ไม่สามารถกรอกชื่อโปรเจกต์เองได้อีกต่อไป",
+                "เพิ่ม: หากโปรเจกต์ไม่ปรากฏในรายการ แอปจะแจ้งให้สร้างโปรเจกต์ใน Lark ก่อนแล้วกด Refresh",
+                "เพิ่ม: ตาราง BOQ Brand Usage ใน Lark CRM เชื่อมต่อกับ Sale Projects ผ่าน Link field แบบสองทาง",
+                "เพิ่ม: คำอธิบายรุ่น (Model Description) ถูกบันทึกใน BOQ Brand Usage ควบคู่กับแบรนด์และรหัสรุ่น",
+            ],
+        },
+    },
+    {
+        "version": "1.2.3",
+        "date": "2026-05-22",
+        "changes": {
+            "en": [
+                "Added: Refresh from Lark button — sync project list from Lark directly inside the app without restarting",
+                "Removed: Progress bar next to Convert button",
+            ],
+            "th": [
+                "เพิ่ม: ปุ่ม Refresh from Lark — ซิงค์รายการโครงการจาก Lark ได้โดยตรงในแอป โดยไม่ต้องรีสตาร์ท",
+                "ลบ: แถบความคืบหน้าข้างปุ่ม Convert",
+            ],
+        },
+    },
     {
         "version": "1.2.2",
         "date": "2026-05-22",

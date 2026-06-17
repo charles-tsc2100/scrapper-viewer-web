@@ -29,7 +29,7 @@ if errorlevel 1 (
 echo [2/3] Building executable... (this may take 1-2 minutes)
 cd /d "%~dp0"
 pyinstaller --noconfirm --onefile --windowed --noupx ^
-    --name "BOQ Converter (v1.2.2)" ^
+    --name "BOQ Converter (v1.4.1)" ^
     --icon "logos\app_icon.ico" ^
     --version-file "version_info.txt" ^
     --add-data "boq_parser.py;." ^
@@ -39,12 +39,14 @@ pyinstaller --noconfirm --onefile --windowed --noupx ^
     --add-data "i18n.py;." ^
     --add-data "version.py;." ^
     --add-data "theme.py;." ^
+    --add-data "db_logger.py;." ^
+    --add-data "tools;tools" ^
     --add-data "logos;logos" ^
     --add-data "fonts;fonts" ^
-    --add-data "user_guide.html;." ^
     --add-data "pictures;pictures" ^
     --hidden-import "openpyxl" ^
     --hidden-import "tkinter" ^
+    --hidden-import "tools.lark_sync" ^
     app.py
 
 if errorlevel 1 (
@@ -59,7 +61,7 @@ echo [3/3] Done!
 echo.
 echo ============================================
 echo   SUCCESS! Your .exe is ready at:
-echo   %~dp0dist\BOQ Converter (v1.2.2).exe
+echo   %~dp0dist\BOQ Converter (v1.4.1).exe
 echo ============================================
 echo.
 echo You can move "BOQ Converter.exe" anywhere you like.
